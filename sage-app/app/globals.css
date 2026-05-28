@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #080C14;
+    color: #f1f5f9;
+  }
+}
+
+@layer utilities {
+  .delay-150 {
+    animation-delay: 150ms;
+  }
+  .delay-300 {
+    animation-delay: 300ms;
+  }
+}
