@@ -780,6 +780,7 @@ function buildNatalContext(profile) {
   if (profile.birthPlace) lines.push(`BIRTH LOCATION: ${profile.birthPlace}`);
   if (profile.chartText?.trim()) lines.push(`\nNATAL CHART DATA (provided by user):\n${profile.chartText.trim()}`);
   else lines.push('\n(No chart data provided — work from birth date and any information shared in conversation)');
+  if (profile.notes?.trim()) lines.push(`\nPERSONAL DEEP ANALYSIS (pre-written psychological portrait of this person — treat as intimate background knowledge, not text to quote directly):\n${profile.notes.trim()}`);
   return lines.join('\n');
 }
 
@@ -909,6 +910,11 @@ function renderWizardStep() {
         <label class="w-label">Chart data <span class="w-optional">(optional but recommended)</span></label>
         <textarea class="w-textarea" id="wChart" placeholder="Paste your planet list or key placements here…" style="min-height:120px;">${esc(WZ.data.chartText || '')}</textarea>
       </div>
+      <div class="w-field">
+        <label class="w-label">Personal deep notes <span class="w-optional">(optional)</span></label>
+        <p style="font-size:0.82em;color:var(--text-muted);margin:-4px 0 8px;">Paste a psychological analysis, journal entries, or any personal context you want the AI to hold permanently. It will inform every conversation without being quoted directly.</p>
+        <textarea class="w-textarea" id="wNotes" placeholder="Paste a deep analysis, personal notes, or anything the AI should always know about you…" style="min-height:100px;">${esc(WZ.data.notes || '')}</textarea>
+      </div>
       <div class="wizard-nav">
         <button class="btn-back" onclick="WZ.step=2;renderWizardStep()">← Back</button>
         <button class="btn-next" onclick="wNext3()">${WZ.totalSteps === 3 ? (WZ.editingId ? 'Save Changes ✓' : 'Begin →') : 'Continue →'}</button>
@@ -966,6 +972,7 @@ function wNext2() {
 
 function wNext3() {
   WZ.data.chartText = document.getElementById('wChart').value;
+  WZ.data.notes     = document.getElementById('wNotes').value;
   if (WZ.totalSteps === 3) { wFinish(); return; }
   WZ.step = 4;
   renderWizardStep();
@@ -987,7 +994,8 @@ function wFinish() {
     updateProfile(WZ.editingId, {
       name: WZ.data.name, emoji: WZ.data.emoji,
       birthDate: WZ.data.birthDate, birthTime: WZ.data.birthTime,
-      birthPlace: WZ.data.birthPlace, chartText: WZ.data.chartText
+      birthPlace: WZ.data.birthPlace, chartText: WZ.data.chartText,
+      notes: WZ.data.notes
     });
     if (!SHARED_KEY && apiKey) saveKey(WZ.editingId, apiKey);
     hideWizard();
@@ -997,7 +1005,8 @@ function wFinish() {
     const profile = createProfile({
       name: WZ.data.name, emoji: WZ.data.emoji,
       birthDate: WZ.data.birthDate, birthTime: WZ.data.birthTime,
-      birthPlace: WZ.data.birthPlace, chartText: WZ.data.chartText
+      birthPlace: WZ.data.birthPlace, chartText: WZ.data.chartText,
+      notes: WZ.data.notes
     });
     if (!SHARED_KEY && apiKey) saveKey(profile.id, apiKey);
 
