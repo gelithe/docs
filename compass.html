@@ -117,6 +117,8 @@ body::before {
   padding: 40px 44px;
   max-width: 480px;
   width: 94%;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: 0 8px 48px rgba(100,80,20,0.12);
   animation: fadeUp 0.28s ease;
 }
@@ -759,7 +761,7 @@ function getSessions(id)    { return JSON.parse(localStorage.getItem(ns(id,'sess
 function saveSessions(id,v) { localStorage.setItem(ns(id,'sessions'), JSON.stringify(v)); }
 function getJournal(id)     { return JSON.parse(localStorage.getItem(ns(id,'journal'))  || '[]'); }
 function saveJournal(id,v)  { localStorage.setItem(ns(id,'journal'),  JSON.stringify(v)); }
-function getKey(id)         { return SHARED_KEY || localStorage.getItem(ns(id,'key')) || ''; }
+function getKey(id)         { return localStorage.getItem(ns(id,'key')) || SHARED_KEY || ''; }
 function saveKey(id,k)      { localStorage.setItem(ns(id,'key'), k); }
 
 // ─── MIGRATE OLD DATA ─────────────────────────────────────────────────────────
@@ -832,8 +834,7 @@ function showWizard(editingId) {
     if (p) WZ.data = { ...p };
   }
 
-  // Determine total steps (skip API key step if SHARED_KEY is set)
-  WZ.totalSteps = SHARED_KEY ? 3 : 4;
+  WZ.totalSteps = 4;
   WZ.step = 1;
   document.getElementById('wizardOverlay').style.display = 'flex';
   renderWizardStep();
@@ -920,21 +921,26 @@ function renderWizardStep() {
         <button class="btn-next" onclick="wNext3()">${WZ.totalSteps === 3 ? (WZ.editingId ? 'Save Changes ✓' : 'Begin →') : 'Continue →'}</button>
       </div>`;
   } else if (WZ.step === 4) {
+    const sharedAvail = !!SHARED_KEY;
+    const existingPersonal = WZ.editingId ? (localStorage.getItem(ns(WZ.editingId,'key')) || '') : '';
     inner += `
       <div class="wizard-glyph">⊕</div>
       <h2>API Key</h2>
-      <p class="wizard-sub">Chart Compass connects to Claude AI using your Anthropic API key. It is stored only in your browser.</p>
+      <p class="wizard-sub">${sharedAvail
+        ? 'A shared key is available — you can use it as-is, or enter your own to use your credits instead.'
+        : 'Chart Compass connects to Claude AI using your Anthropic API key. Stored only in your browser.'
+      }</p>
       <div class="w-field">
-        <label class="w-label">Anthropic API key</label>
-        <input class="w-input" type="password" id="wKey" placeholder="sk-ant-api03-…" autocomplete="off" value="${esc(getKey(WZ.editingId || '__new__') && !SHARED_KEY ? getKey(WZ.editingId || '__new__') : '')}">
-        <p class="key-hint">
-          Get a key at <strong>console.anthropic.com</strong>. The key starts with <strong>sk-ant-</strong>.<br>
-          If a friend shared a key with you, enter it here.
-        </p>
+        <label class="w-label">Anthropic API key${sharedAvail ? ' <span class="w-optional">(optional)</span>' : ''}</label>
+        <input class="w-input" type="password" id="wKey" placeholder="sk-ant-api03-…" autocomplete="off" value="${esc(existingPersonal)}">
+        <p class="key-hint">${sharedAvail
+          ? 'Leave empty to use the shared key. Enter yours to use your own credits — your key takes priority.'
+          : 'Get a key at <strong>console.anthropic.com</strong>. The key starts with <strong>sk-ant-</strong>.'
+        }</p>
       </div>
       <div class="wizard-nav">
         <button class="btn-back" onclick="WZ.step=3;renderWizardStep()">← Back</button>
-        <button class="btn-next" onclick="wFinish()">${WZ.editingId ? 'Save Changes ✓' : 'Open my Compass →'}</button>
+        <button class="btn-next" onclick="wFinish()">${WZ.editingId ? 'Save Changes ✓' : (sharedAvail ? 'Begin →' : 'Open my Compass →')}</button>
       </div>`;
   }
 
@@ -979,45 +985,119 @@ function wNext3() {
 }
 
 function wFinish() {
-  // Collect API key if needed
-  let apiKey = SHARED_KEY;
-  if (!SHARED_KEY) {
-    const keyEl = document.getElementById('wKey');
-    if (keyEl) {
-      apiKey = keyEl.value.trim();
-      if (!apiKey.startsWith('sk-ant-')) { alert('Please enter a valid Anthropic API key (starts with sk-ant-).'); return; }
-    }
+  const keyEl = document.getElementById('wKey');
+  const enteredKey = keyEl ? keyEl.value.trim() : '';
+
+  // Validate entered key if non-empty
+  if (enteredKey && !enteredKey.startsWith('sk-ant-')) {
+    alert('The API key should start with sk-ant- — please check it or leave the field empty.');
+    return;
+  }
+  // Require some key if no shared key is available
+  if (!enteredKey && !SHARED_KEY) {
+    alert('Please enter an Anthropic API key (starts with sk-ant-) to use Chart Compass.');
+    return;
   }
 
+  // Active key for this session: personal key takes priority over shared
+  const apiKey = enteredKey || SHARED_KEY;
+
   if (WZ.editingId) {
-    // Update existing profile
     updateProfile(WZ.editingId, {
       name: WZ.data.name, emoji: WZ.data.emoji,
       birthDate: WZ.data.birthDate, birthTime: WZ.data.birthTime,
       birthPlace: WZ.data.birthPlace, chartText: WZ.data.chartText,
       notes: WZ.data.notes
     });
-    if (!SHARED_KEY && apiKey) saveKey(WZ.editingId, apiKey);
+    if (enteredKey) saveKey(WZ.editingId, enteredKey);
     hideWizard();
     loadProfile(WZ.editingId);
   } else {
-    // Create new profile
     const profile = createProfile({
       name: WZ.data.name, emoji: WZ.data.emoji,
       birthDate: WZ.data.birthDate, birthTime: WZ.data.birthTime,
       birthPlace: WZ.data.birthPlace, chartText: WZ.data.chartText,
       notes: WZ.data.notes
     });
-    if (!SHARED_KEY && apiKey) saveKey(profile.id, apiKey);
-
-    // Migrate old single-user data to first profile
+    if (enteredKey) saveKey(profile.id, enteredKey);
     if (getProfiles().length === 1) migrateOldData(profile.id);
-
     setActiveId(profile.id);
-    hideWizard();
-    loadProfile(profile.id);
     showApp();
+    loadProfile(profile.id);
+
+    // Auto-generate deep analysis if chart data provided and no notes already written
+    if (profile.chartText?.trim() && !profile.notes?.trim()) {
+      showGeneratingOverlay(profile, apiKey);
+    } else {
+      hideWizard();
+    }
   }
+}
+
+function showGeneratingOverlay(profile, key) {
+  const c = document.getElementById('wizardContainer');
+  c.innerHTML = `
+    <div class="wizard-panel" style="text-align:center;">
+      <div class="wizard-glyph">✦</div>
+      <h2>Mapping ${esc(profile.name)}'s Chart</h2>
+      <p class="wizard-sub">Writing your personal deep analysis — usually under a minute. The Compass is ready to use while you wait.</p>
+      <div style="display:flex;gap:5px;justify-content:center;margin:20px 0;">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+      <p style="font-size:0.75rem;color:var(--text-muted);line-height:1.6;">Blind spots, paradoxes, and invisible patterns — derived from your specific placements.</p>
+      <div class="wizard-nav" style="justify-content:center;margin-top:20px;">
+        <button class="btn-back" onclick="hideWizard()">Skip for now</button>
+      </div>
+    </div>`;
+
+  generateDeepAnalysis(profile, key)
+    .then(analysis => { if (analysis) updateProfile(profile.id, { notes: analysis }); })
+    .catch(() => {})
+    .finally(() => hideWizard());
+}
+
+function buildDeepAnalysisPrompt(profile) {
+  const parts = [`Name: ${profile.name}`];
+  if (profile.birthDate)       parts.push(`Birth date: ${profile.birthDate}`);
+  if (profile.birthTime)       parts.push(`Birth time: ${profile.birthTime}`);
+  if (profile.birthPlace)      parts.push(`Birth place: ${profile.birthPlace}`);
+  if (profile.chartText?.trim()) parts.push(`\nNatal chart placements:\n${profile.chartText.trim()}`);
+
+  return `Write a deep psychological astrological analysis for ${profile.name}.
+
+${parts.join('\n')}
+
+Structure the document in two parts:
+
+## Part One: What You Don't Know You Don't Know
+Write 6 sections. Each describes a specific invisible pattern or blind spot that operates before conscious awareness — derived directly from their actual chart placements. Give each section a short descriptive title. 150–200 words per section.
+
+## Part Two: Paradoxes to Embrace and Embody
+Write 6 sections. Each describes a genuine tension in the chart — two real needs that cannot be resolved in sequence, only held simultaneously. Explain how holding the paradox consciously becomes a source of unusual power. Give each section a short descriptive title. 150–200 words per section.
+
+Write entirely in second person ("you"). Derive every insight from the specific placements — house positions, sign qualities, aspects, configurations. Never use generic sun sign or moon sign descriptions. Write with the precision of a Jungian analyst who also knows astrology. Total length approximately 2000–2500 words.`;
+}
+
+async function generateDeepAnalysis(profile, key) {
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 3000,
+        messages: [{ role: 'user', content: buildDeepAnalysisPrompt(profile) }]
+      })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.content[0]?.text || null;
+  } catch { return null; }
 }
 
 // ─── APP INIT ────────────────────────────────────────────────────────────────
