@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +9,30 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* LIGHT THEME (default) */
 :root {
+  --bg: #f5f0e8;
+  --surface: #ede7db;
+  --card: #ffffff;
+  --card-hover: #faf7f2;
+  --gold: #9a7010;
+  --gold-dim: #b8920a;
+  --gold-light: #c9a227;
+  --purple: #6b5fd4;
+  --blue: #2196c4;
+  --teal: #1a9eae;
+  --red-soft: #c0604a;
+  --text: #2c2416;
+  --text-bright: #1a150c;
+  --text-muted: #8a7860;
+  --border: rgba(154,112,16,0.16);
+  --border-active: rgba(154,112,16,0.5);
+  --shadow: 0 2px 12px rgba(100,80,20,0.08);
+  --radius: 12px;
+}
+
+/* DARK THEME */
+[data-theme="dark"] {
   --bg: #07071a;
   --surface: #0f0f28;
   --card: #16163a;
@@ -26,7 +49,7 @@
   --text-muted: #6a6a90;
   --border: rgba(201,162,39,0.13);
   --border-active: rgba(201,162,39,0.45);
-  --radius: 12px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.3);
 }
 
 html, body { height: 100%; overflow: hidden; }
@@ -37,12 +60,21 @@ body {
   font-family: 'Lato', sans-serif;
   font-size: 15px;
   line-height: 1.6;
+  transition: background 0.3s, color 0.3s;
 }
 
 body::before {
   content: '';
   position: fixed;
   inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+[data-theme="dark"] body::before {
+  opacity: 1;
   background-image:
     radial-gradient(1px 1px at 15% 25%, rgba(255,255,255,0.45) 0%, transparent 100%),
     radial-gradient(1px 1px at 75% 8%,  rgba(255,255,255,0.3)  0%, transparent 100%),
@@ -58,19 +90,21 @@ body::before {
     radial-gradient(1px 1px at 3%  48%, rgba(255,255,255,0.2)  0%, transparent 100%),
     radial-gradient(1px 1px at 95% 20%, rgba(255,255,255,0.28) 0%, transparent 100%),
     radial-gradient(1px 1px at 22% 95%, rgba(255,255,255,0.22) 0%, transparent 100%);
-  pointer-events: none;
-  z-index: 0;
 }
 
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(7,7,26,0.95);
+  background: rgba(245,240,232,0.92);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(10px);
+}
+
+[data-theme="dark"] .overlay {
+  background: rgba(7,7,26,0.95);
 }
 
 .modal {
@@ -81,15 +115,10 @@ body::before {
   max-width: 440px;
   width: 92%;
   text-align: center;
-  box-shadow: 0 0 80px rgba(201,162,39,0.08);
+  box-shadow: var(--shadow);
 }
 
-.modal-glyph {
-  font-size: 2.8rem;
-  color: var(--gold);
-  opacity: 0.7;
-  margin-bottom: 16px;
-}
+.modal-glyph { font-size: 2.8rem; color: var(--gold); opacity: 0.7; margin-bottom: 16px; }
 
 .modal h2 {
   font-family: 'Cinzel', serif;
@@ -99,12 +128,7 @@ body::before {
   margin-bottom: 6px;
 }
 
-.modal-sub {
-  color: var(--text-muted);
-  font-size: 0.82rem;
-  margin-bottom: 28px;
-  line-height: 1.65;
-}
+.modal-sub { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 28px; line-height: 1.65; }
 
 .modal input {
   width: 100%;
@@ -121,12 +145,7 @@ body::before {
 
 .modal input:focus { outline: none; border-color: var(--gold-dim); }
 
-.key-note {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-bottom: 22px;
-  line-height: 1.5;
-}
+.key-note { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 22px; line-height: 1.5; }
 
 .btn {
   display: inline-flex;
@@ -144,7 +163,7 @@ body::before {
   transition: all 0.18s;
 }
 
-.btn-primary { background: var(--gold); color: #07071a; width: 100%; }
+.btn-primary { background: var(--gold); color: #fff; width: 100%; }
 .btn-primary:hover { background: var(--gold-light); }
 .btn-ghost {
   background: transparent;
@@ -171,93 +190,33 @@ header {
   justify-content: space-between;
   padding: 0 22px;
   border-bottom: 1px solid var(--border);
-  background: rgba(7,7,26,0.85);
+  background: rgba(245,240,232,0.9);
   backdrop-filter: blur(14px);
   z-index: 10;
 }
 
+[data-theme="dark"] header { background: rgba(7,7,26,0.85); }
+
 .h-left { display: flex; align-items: center; gap: 12px; }
-
-.h-orb {
-  width: 34px; height: 34px;
-  border: 1px solid var(--gold-dim);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--gold);
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-
-.h-title {
-  font-family: 'Cinzel', serif;
-  font-size: 0.95rem;
-  color: var(--gold);
-  letter-spacing: 0.07em;
-}
-
+.h-orb { width: 34px; height: 34px; border: 1px solid var(--gold-dim); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 1rem; flex-shrink: 0; }
+.h-title { font-family: 'Cinzel', serif; font-size: 0.95rem; color: var(--gold); letter-spacing: 0.07em; }
 .h-sub { font-size: 0.72rem; color: var(--text-muted); }
-
 .h-right { display: flex; align-items: center; gap: 10px; }
+.date-chip { font-size: 0.72rem; color: var(--text-muted); padding: 4px 11px; border: 1px solid var(--border); border-radius: 20px; }
 
-.date-chip {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  padding: 4px 11px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-}
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.sb-section { padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sb-label { font-family: 'Cinzel', serif; font-size: 0.6rem; color: var(--gold-dim); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 10px; }
 
-.sidebar {
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.sb-section {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.sb-label {
-  font-family: 'Cinzel', serif;
-  font-size: 0.6rem;
-  color: var(--gold-dim);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-
-.mode-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 5px;
-}
-
-.mode-btn {
-  padding: 7px 4px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-muted);
-  font-size: 0.68rem;
-  font-family: 'Lato', sans-serif;
-  cursor: pointer;
-  transition: all 0.18s;
-  text-align: center;
-  line-height: 1.35;
-}
-
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+.mode-btn { padding: 7px 4px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); font-size: 0.68rem; font-family: 'Lato', sans-serif; cursor: pointer; transition: all 0.18s; text-align: center; line-height: 1.35; }
 .mode-btn:hover { border-color: var(--gold-dim); color: var(--text); }
-.mode-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(201,162,39,0.07); }
+.mode-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(154,112,16,0.07); }
 .mode-icon { display: block; font-size: 1rem; margin-bottom: 2px; }
 
 .sb-scroll { flex: 1; overflow-y: auto; }
 .sb-scroll::-webkit-scrollbar { width: 3px; }
 .sb-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
 .planet-list { display: flex; flex-direction: column; gap: 3px; }
 .prow { display: flex; justify-content: space-between; font-size: 0.72rem; padding: 1px 0; }
 .pname { color: var(--gold-dim); font-weight: 700; width: 72px; }
@@ -266,202 +225,61 @@ header {
 .sb-settings { padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
 .sb-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 6px; }
 .sb-row:last-child { margin-bottom: 0; }
-.sb-row button {
-  background: none; border: 1px solid var(--border); color: var(--text-muted);
-  padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; cursor: pointer;
-  font-family: 'Lato', sans-serif;
-}
+.sb-row button { background: none; border: 1px solid var(--border); color: var(--text-muted); padding: 2px 8px; border-radius: 4px; font-size: 0.68rem; cursor: pointer; font-family: 'Lato', sans-serif; }
 .sb-row button:hover { border-color: var(--gold-dim); color: var(--text); }
 
-.main {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: rgba(7,7,26,0.3);
-}
-
-.tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  background: rgba(7,7,26,0.5);
-  flex-shrink: 0;
-}
-
-.tab {
-  padding: 12px 20px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.18s;
-  letter-spacing: 0.03em;
-  user-select: none;
-}
-
+.main { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+.tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.tab { padding: 12px 20px; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.18s; letter-spacing: 0.03em; user-select: none; }
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
 
 .tab-pane { flex: 1; display: none; flex-direction: column; overflow: hidden; }
 .tab-pane.active { display: flex; }
 
-.convo {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
+.convo { flex: 1; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
 .convo::-webkit-scrollbar { width: 4px; }
 .convo::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-.welcome {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 12px;
-  padding: 40px;
-  color: var(--text-muted);
-}
-
-.welcome-orb { font-size: 3rem; opacity: 0.5; color: var(--gold); }
+.welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; padding: 40px; color: var(--text-muted); }
+.welcome-orb { font-size: 3rem; opacity: 0.4; color: var(--gold); }
 .welcome h3 { font-family: 'Cinzel', serif; color: var(--text-muted); font-size: 1rem; letter-spacing: 0.05em; }
 .welcome p { font-size: 0.82rem; max-width: 340px; line-height: 1.65; }
 
 .msg { max-width: 82%; animation: fadeUp 0.28s ease; }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
 .msg.user { align-self: flex-end; }
 .msg.assistant { align-self: flex-start; }
 
-.bubble {
-  padding: 13px 17px;
-  border-radius: 16px;
-  font-size: 0.875rem;
-  line-height: 1.72;
-}
+.bubble { padding: 13px 17px; border-radius: 16px; font-size: 0.875rem; line-height: 1.72; }
 
-.msg.user .bubble {
-  background: rgba(201,162,39,0.1);
-  border: 1px solid rgba(201,162,39,0.22);
-  border-bottom-right-radius: 3px;
-  color: var(--text-bright);
-}
-
-.msg.assistant .bubble {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-bottom-left-radius: 3px;
-  color: var(--text);
-}
+.msg.user .bubble { background: rgba(154,112,16,0.08); border: 1px solid rgba(154,112,16,0.2); border-bottom-right-radius: 3px; color: var(--text-bright); }
+[data-theme="dark"] .msg.user .bubble { background: rgba(201,162,39,0.1); border-color: rgba(201,162,39,0.22); }
+.msg.assistant .bubble { background: var(--card); border: 1px solid var(--border); border-bottom-left-radius: 3px; color: var(--text); box-shadow: var(--shadow); }
 
 .msg-meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; padding: 0 4px; }
 .msg.user .msg-meta { text-align: right; }
 
-.typing {
-  align-self: flex-start;
-  display: flex;
-  gap: 5px;
-  padding: 14px 18px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  border-bottom-left-radius: 3px;
-}
-
-.dot {
-  width: 6px; height: 6px;
-  background: var(--text-muted);
-  border-radius: 50%;
-  animation: bounce 1.4s infinite ease-in-out;
-}
+.typing { align-self: flex-start; display: flex; gap: 5px; padding: 14px 18px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; border-bottom-left-radius: 3px; }
+.dot { width: 6px; height: 6px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
 .dot:nth-child(1) { animation-delay: 0s; }
 .dot:nth-child(2) { animation-delay: 0.2s; }
 .dot:nth-child(3) { animation-delay: 0.4s; }
 @keyframes bounce { 0%,60%,100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-7px); opacity: 1; } }
 
-.err-msg {
-  align-self: center;
-  background: rgba(255,80,60,0.07);
-  border: 1px solid rgba(255,80,60,0.2);
-  border-radius: 8px;
-  padding: 10px 16px;
-  font-size: 0.8rem;
-  color: #ff9080;
-  max-width: 80%;
-}
+.err-msg { align-self: center; background: rgba(255,80,60,0.07); border: 1px solid rgba(255,80,60,0.2); border-radius: 8px; padding: 10px 16px; font-size: 0.8rem; color: #c0604a; max-width: 80%; }
 
-.starters {
-  display: flex;
-  gap: 7px;
-  padding: 0 28px 14px;
-  flex-wrap: wrap;
-  flex-shrink: 0;
-}
-
-.starter {
-  padding: 6px 13px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  font-size: 0.76rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all 0.18s;
-  user-select: none;
-}
-
+.starters { display: flex; gap: 7px; padding: 0 28px 14px; flex-wrap: wrap; flex-shrink: 0; }
+.starter { padding: 6px 13px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; font-size: 0.76rem; color: var(--text-muted); cursor: pointer; transition: all 0.18s; user-select: none; box-shadow: var(--shadow); }
 .starter:hover { border-color: var(--gold-dim); color: var(--text); }
 
-.input-area {
-  padding: 14px 22px 16px;
-  border-top: 1px solid var(--border);
-  background: rgba(7,7,26,0.5);
-  flex-shrink: 0;
-}
-
+.input-area { padding: 14px 22px 16px; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
 .input-row { display: flex; gap: 9px; align-items: flex-end; }
-
-textarea.input-box {
-  flex: 1;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 15px;
-  color: var(--text);
-  font-size: 0.875rem;
-  font-family: 'Lato', sans-serif;
-  resize: none;
-  min-height: 46px;
-  max-height: 140px;
-  line-height: 1.5;
-  transition: border-color 0.18s;
-}
-
+textarea.input-box { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 15px; color: var(--text); font-size: 0.875rem; font-family: 'Lato', sans-serif; resize: none; min-height: 46px; max-height: 140px; line-height: 1.5; transition: border-color 0.18s; box-shadow: var(--shadow); }
 textarea.input-box:focus { outline: none; border-color: var(--gold-dim); }
 textarea.input-box::placeholder { color: var(--text-muted); }
 
-.send-btn {
-  width: 46px; height: 46px;
-  background: var(--gold);
-  border: none;
-  border-radius: 12px;
-  color: #07071a;
-  font-size: 1.2rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.18s;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
+.send-btn { width: 46px; height: 46px; background: var(--gold); border: none; border-radius: 12px; color: #fff; font-size: 1.2rem; font-weight: 700; cursor: pointer; transition: all 0.18s; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .send-btn:hover { background: var(--gold-light); }
 .send-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -469,78 +287,29 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 .journal-wrap::-webkit-scrollbar { width: 4px; }
 .journal-wrap::-webkit-scrollbar-thumb { background: var(--border); }
 
-.j-form {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  margin-bottom: 24px;
-}
-
+.j-form { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow); }
 .j-form-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 11px; }
-
 .type-chips { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 13px; }
-
-.chip {
-  padding: 5px 13px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  font-size: 0.73rem;
-  cursor: pointer;
-  transition: all 0.18s;
-  color: var(--text-muted);
-  background: transparent;
-  font-family: 'Lato', sans-serif;
-}
-
-.chip.active { background: rgba(201,162,39,0.1); border-color: var(--gold); color: var(--gold); }
-
-.j-textarea {
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px 14px;
-  color: var(--text);
-  font-size: 0.875rem;
-  font-family: 'Lato', sans-serif;
-  resize: vertical;
-  min-height: 80px;
-  line-height: 1.65;
-  margin-bottom: 12px;
-}
-
+.chip { padding: 5px 13px; border: 1px solid var(--border); border-radius: 20px; font-size: 0.73rem; cursor: pointer; transition: all 0.18s; color: var(--text-muted); background: transparent; font-family: 'Lato', sans-serif; }
+.chip.active { background: rgba(154,112,16,0.08); border-color: var(--gold); color: var(--gold); }
+.j-textarea { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: var(--text); font-size: 0.875rem; font-family: 'Lato', sans-serif; resize: vertical; min-height: 80px; line-height: 1.65; margin-bottom: 12px; }
 .j-textarea:focus { outline: none; border-color: var(--gold-dim); }
-
 .j-entries { display: flex; flex-direction: column; gap: 10px; }
+.j-entry { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 15px; box-shadow: var(--shadow); }
+.j-entry-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.j-type-badge { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.07em; padding: 3px 10px; border-radius: 20px; }
 
-.j-entry {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 15px;
-}
+.badge-milestone { background: rgba(33,150,196,0.1); color: var(--blue); border: 1px solid rgba(33,150,196,0.25); }
+.badge-celebration { background: rgba(154,112,16,0.1); color: var(--gold); border: 1px solid rgba(154,112,16,0.25); }
+.badge-insight { background: rgba(26,158,174,0.1); color: var(--teal); border: 1px solid rgba(26,158,174,0.25); }
+.badge-doubt { background: rgba(107,95,212,0.1); color: var(--purple); border: 1px solid rgba(107,95,212,0.25); }
+.badge-intention { background: rgba(192,96,74,0.1); color: var(--red-soft); border: 1px solid rgba(192,96,74,0.25); }
 
-.j-entry-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.j-type-badge {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  padding: 3px 10px;
-  border-radius: 20px;
-}
-
-.badge-milestone { background: rgba(79,195,247,0.1);  color: var(--blue);     border: 1px solid rgba(79,195,247,0.2);  }
-.badge-celebration { background: rgba(201,162,39,0.1); color: var(--gold);     border: 1px solid rgba(201,162,39,0.2);  }
-.badge-insight { background: rgba(38,198,218,0.1);    color: var(--teal);     border: 1px solid rgba(38,198,218,0.2);  }
-.badge-doubt { background: rgba(139,127,255,0.1);     color: var(--purple);   border: 1px solid rgba(139,127,255,0.2); }
-.badge-intention { background: rgba(255,144,128,0.1); color: var(--red-soft); border: 1px solid rgba(255,144,128,0.2); }
+[data-theme="dark"] .badge-milestone { background: rgba(79,195,247,0.1); color: #4fc3f7; border-color: rgba(79,195,247,0.2); }
+[data-theme="dark"] .badge-celebration { background: rgba(201,162,39,0.1); color: #c9a227; border-color: rgba(201,162,39,0.2); }
+[data-theme="dark"] .badge-insight { background: rgba(38,198,218,0.1); color: #26c6da; border-color: rgba(38,198,218,0.2); }
+[data-theme="dark"] .badge-doubt { background: rgba(139,127,255,0.1); color: #8b7fff; border-color: rgba(139,127,255,0.2); }
+[data-theme="dark"] .badge-intention { background: rgba(255,144,128,0.1); color: #ff9080; border-color: rgba(255,144,128,0.2); }
 
 .j-date { font-size: 0.68rem; color: var(--text-muted); }
 .j-text { font-size: 0.855rem; line-height: 1.65; color: var(--text); }
@@ -548,56 +317,20 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 .book-wrap { flex: 1; overflow-y: auto; padding: 24px 28px; }
 .book-wrap::-webkit-scrollbar { width: 4px; }
 .book-wrap::-webkit-scrollbar-thumb { background: var(--border); }
-
 .book-header { text-align: center; padding-bottom: 28px; }
-
-.book-header h3 {
-  font-family: 'Cinzel', serif;
-  color: var(--gold);
-  font-size: 1.1rem;
-  letter-spacing: 0.06em;
-  margin-bottom: 5px;
-}
-
+.book-header h3 { font-family: 'Cinzel', serif; color: var(--gold); font-size: 1.1rem; letter-spacing: 0.06em; margin-bottom: 5px; }
 .book-header p { font-size: 0.78rem; color: var(--text-muted); }
 .book-empty { text-align: center; color: var(--text-muted); font-size: 0.83rem; padding: 30px 0; }
 
-.chapter {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  margin-bottom: 12px;
-  overflow: hidden;
-}
-
-.chapter-head {
-  padding: 14px 18px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  cursor: pointer;
-  transition: background 0.18s;
-  gap: 12px;
-}
-
+.chapter { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; box-shadow: var(--shadow); }
+.chapter-head { padding: 14px 18px; display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; transition: background 0.18s; gap: 12px; }
 .chapter-head:hover { background: var(--card-hover); }
-
 .chapter-title { font-size: 0.855rem; color: var(--text); font-weight: 600; line-height: 1.4; }
 .chapter-meta { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; }
 .chapter-arrow { color: var(--text-muted); font-size: 0.75rem; flex-shrink: 0; margin-top: 2px; }
-
 .chapter-body { padding: 0 18px; max-height: 0; overflow: hidden; transition: max-height 0.28s ease, padding 0.28s; }
 .chapter-body.open { max-height: 2000px; padding: 4px 18px 16px; }
-
-.ch-msg {
-  font-size: 0.8rem;
-  line-height: 1.65;
-  color: var(--text-muted);
-  margin-bottom: 9px;
-  padding-left: 10px;
-  border-left: 2px solid var(--border);
-}
-
+.ch-msg { font-size: 0.8rem; line-height: 1.65; color: var(--text-muted); margin-bottom: 9px; padding-left: 10px; border-left: 2px solid var(--border); }
 .ch-msg.assistant { border-left-color: var(--gold-dim); color: var(--text); }
 .ch-msg strong { color: var(--text-muted); font-size: 0.68rem; display: block; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
 .ch-msg.assistant strong { color: var(--gold-dim); }
@@ -614,21 +347,14 @@ textarea.input-box::placeholder { color: var(--text-muted); }
   <div class="modal">
     <div class="modal-glyph">✦</div>
     <h2>Chart Compass</h2>
-    <p class="modal-sub">
-      Your natal chart, alive in conversation.<br>
-      Enter your Anthropic API key to begin — it stays only in this browser.
-    </p>
+    <p class="modal-sub">Your natal chart, alive in conversation.<br>Enter your Anthropic API key to begin — it stays only in this browser.</p>
     <input type="password" id="keyInput" placeholder="sk-ant-api03-..." autocomplete="off">
-    <p class="key-note">
-      Stored in your browser's localStorage only. No server receives your key.<br>
-      Get a key at console.anthropic.com
-    </p>
+    <p class="key-note">Stored in your browser's localStorage only. No server receives your key.<br>Get a key at console.anthropic.com</p>
     <button class="btn btn-primary" onclick="onSaveKey()">Open the Compass →</button>
   </div>
 </div>
 
 <div class="app" id="app" style="display:none;">
-
   <header>
     <div class="h-left">
       <div class="h-orb">✦</div>
@@ -639,6 +365,7 @@ textarea.input-box::placeholder { color: var(--text-muted); }
     </div>
     <div class="h-right">
       <div class="date-chip" id="dateBadge"></div>
+      <button class="btn btn-ghost" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark">☀</button>
       <button class="btn btn-ghost" onclick="newSession()">+ New Session</button>
     </div>
   </header>
@@ -647,48 +374,46 @@ textarea.input-box::placeholder { color: var(--text-muted); }
     <div class="sb-section">
       <div class="sb-label">Mode</div>
       <div class="mode-grid">
-        <button class="mode-btn active" data-mode="reflect"   onclick="setMode(this)"><span class="mode-icon">◯</span>Reflect</button>
-        <button class="mode-btn"        data-mode="question"  onclick="setMode(this)"><span class="mode-icon">?</span>Question</button>
-        <button class="mode-btn"        data-mode="doubt"     onclick="setMode(this)"><span class="mode-icon">~</span>Doubt</button>
-        <button class="mode-btn"        data-mode="celebrate" onclick="setMode(this)"><span class="mode-icon">✦</span>Celebrate</button>
-        <button class="mode-btn"        data-mode="transit"   onclick="setMode(this)"><span class="mode-icon">☽</span>Transits</button>
-        <button class="mode-btn"        data-mode="milestone" onclick="setMode(this)"><span class="mode-icon">△</span>Milestone</button>
+        <button class="mode-btn active" data-mode="reflect" onclick="setMode(this)"><span class="mode-icon">◯</span>Reflect</button>
+        <button class="mode-btn" data-mode="question" onclick="setMode(this)"><span class="mode-icon">?</span>Question</button>
+        <button class="mode-btn" data-mode="doubt" onclick="setMode(this)"><span class="mode-icon">~</span>Doubt</button>
+        <button class="mode-btn" data-mode="celebrate" onclick="setMode(this)"><span class="mode-icon">✦</span>Celebrate</button>
+        <button class="mode-btn" data-mode="transit" onclick="setMode(this)"><span class="mode-icon">☽</span>Transits</button>
+        <button class="mode-btn" data-mode="milestone" onclick="setMode(this)"><span class="mode-icon">△</span>Milestone</button>
       </div>
     </div>
-
     <div class="sb-scroll">
       <div class="sb-section">
         <div class="sb-label">Natal Chart · 23 Feb 1984 · Panevėžys</div>
         <div class="planet-list">
-          <div class="prow"><span class="pname">☉ Sun</span>     <span class="ppos">Pisces 4° · H7</span></div>
-          <div class="prow"><span class="pname">☽ Moon</span>    <span class="ppos">Sag 2° · H4</span></div>
-          <div class="prow"><span class="pname">ASC</span>        <span class="ppos">Leo 19°</span></div>
-          <div class="prow"><span class="pname">MC</span>         <span class="ppos">Aquarius 1°</span></div>
-          <div class="prow"><span class="pname">☿ Mercury</span> <span class="ppos">Aquarius 22° · H7</span></div>
-          <div class="prow"><span class="pname">♀ Venus</span>   <span class="ppos">Aquarius 5° · H6</span></div>
-          <div class="prow"><span class="pname">♂ Mars</span>    <span class="ppos">Scorpio 19° · H4</span></div>
-          <div class="prow"><span class="pname">♃ Jupiter</span> <span class="ppos">Pisces 6° · H5</span></div>
-          <div class="prow"><span class="pname">♄ Saturn</span>  <span class="ppos">Scorpio 16° · H4</span></div>
-          <div class="prow"><span class="pname">♅ Uranus</span>  <span class="ppos">Sag 13° · H4</span></div>
-          <div class="prow"><span class="pname">♆ Neptune</span> <span class="ppos">Cap 1° · H5</span></div>
-          <div class="prow"><span class="pname">♇ Pluto</span>   <span class="ppos">Scorpio 2° · H4</span></div>
-          <div class="prow"><span class="pname">☊ N.Node</span>  <span class="ppos">Gemini 11° · H10</span></div>
-          <div class="prow"><span class="pname">Chiron</span>    <span class="ppos">Taurus 27° · H10</span></div>
+          <div class="prow"><span class="pname">☉ Sun</span><span class="ppos">Pisces 4° · H7</span></div>
+          <div class="prow"><span class="pname">☽ Moon</span><span class="ppos">Sag 2° · H4</span></div>
+          <div class="prow"><span class="pname">ASC</span><span class="ppos">Leo 19°</span></div>
+          <div class="prow"><span class="pname">MC</span><span class="ppos">Aquarius 1°</span></div>
+          <div class="prow"><span class="pname">☿ Mercury</span><span class="ppos">Aquarius 22° · H7</span></div>
+          <div class="prow"><span class="pname">♀ Venus</span><span class="ppos">Aquarius 5° · H6</span></div>
+          <div class="prow"><span class="pname">♂ Mars</span><span class="ppos">Scorpio 19° · H4</span></div>
+          <div class="prow"><span class="pname">♃ Jupiter</span><span class="ppos">Pisces 6° · H5</span></div>
+          <div class="prow"><span class="pname">♄ Saturn</span><span class="ppos">Scorpio 16° · H4</span></div>
+          <div class="prow"><span class="pname">♅ Uranus</span><span class="ppos">Sag 13° · H4</span></div>
+          <div class="prow"><span class="pname">♆ Neptune</span><span class="ppos">Cap 1° · H5</span></div>
+          <div class="prow"><span class="pname">♇ Pluto</span><span class="ppos">Scorpio 2° · H4</span></div>
+          <div class="prow"><span class="pname">☊ N.Node</span><span class="ppos">Gemini 11° · H10</span></div>
+          <div class="prow"><span class="pname">Chiron</span><span class="ppos">Taurus 27° · H10</span></div>
         </div>
       </div>
     </div>
-
     <div class="sb-settings">
-      <div class="sb-row"><span>API Key</span>  <button onclick="onResetKey()">Change</button></div>
-      <div class="sb-row"><span>Sessions</span> <button onclick="onClearSessions()">Clear all</button></div>
+      <div class="sb-row"><span>API Key</span><button onclick="onResetKey()">Change</button></div>
+      <div class="sb-row"><span>Sessions</span><button onclick="onClearSessions()">Clear all</button></div>
     </div>
   </div>
 
   <div class="main">
     <div class="tabs">
       <div class="tab active" onclick="switchTab('compass', this)">Compass</div>
-      <div class="tab"        onclick="switchTab('journal', this)">Journal</div>
-      <div class="tab"        onclick="switchTab('book',    this)">The Book</div>
+      <div class="tab" onclick="switchTab('journal', this)">Journal</div>
+      <div class="tab" onclick="switchTab('book', this)">The Book</div>
     </div>
 
     <div class="tab-pane active" id="pane-compass">
@@ -702,8 +427,7 @@ textarea.input-box::placeholder { color: var(--text-muted); }
       <div class="starters" id="starters"></div>
       <div class="input-area">
         <div class="input-row">
-          <textarea class="input-box" id="inputBox" placeholder="Say anything..." rows="1"
-            onkeydown="onKey(event)" oninput="autoGrow(this)"></textarea>
+          <textarea class="input-box" id="inputBox" placeholder="Say anything..." rows="1" onkeydown="onKey(event)" oninput="autoGrow(this)"></textarea>
           <button class="send-btn" id="sendBtn" onclick="send()">→</button>
         </div>
       </div>
@@ -714,11 +438,11 @@ textarea.input-box::placeholder { color: var(--text-muted); }
         <div class="j-form">
           <div class="j-form-label">New Entry</div>
           <div class="type-chips">
-            <button class="chip active" data-type="milestone"   onclick="pickType(this)">Milestone</button>
-            <button class="chip"        data-type="celebration" onclick="pickType(this)">Celebration</button>
-            <button class="chip"        data-type="insight"     onclick="pickType(this)">Insight</button>
-            <button class="chip"        data-type="doubt"       onclick="pickType(this)">Doubt</button>
-            <button class="chip"        data-type="intention"   onclick="pickType(this)">Intention</button>
+            <button class="chip active" data-type="milestone" onclick="pickType(this)">Milestone</button>
+            <button class="chip" data-type="celebration" onclick="pickType(this)">Celebration</button>
+            <button class="chip" data-type="insight" onclick="pickType(this)">Insight</button>
+            <button class="chip" data-type="doubt" onclick="pickType(this)">Doubt</button>
+            <button class="chip" data-type="intention" onclick="pickType(this)">Intention</button>
           </div>
           <textarea class="j-textarea" id="jText" placeholder="What's alive in you right now?"></textarea>
           <button class="btn btn-primary" style="max-width:150px;font-size:0.82rem;padding:9px 16px;" onclick="saveEntry()">Save Entry</button>
@@ -762,25 +486,17 @@ PLACEMENTS:
   Modality: Fixed 9, Mutable 5, Cardinal 3
   Elements: Earth 6, Water 5, Fire 3, Air 3
 
-DEFINING FEATURES:
+4TH HOUSE STELLIUM (Moon, Mars, Saturn, Uranus, Pluto): Five planets in the house of roots, childhood, family, and psychological foundation. Mars + Saturn + Pluto in Scorpio = the foundation is alchemical. Whatever happened in the family of origin runs as an unconscious operating system behind every decision, block, creative surge, and relationship pattern. May carry several generations of unprocessed material. This work directly activates the 10th house.
 
-4TH HOUSE STELLIUM (Moon, Mars, Saturn, Uranus, Pluto):
-Five planets in the house of roots, childhood, family, and psychological foundation. Mars + Saturn + Pluto in Scorpio here = the foundation is alchemical. Whatever happened in the family of origin left an imprint that runs as an unconscious operating system behind every decision, block, creative surge, and relationship pattern. This is not just personal — it may carry several generations of unprocessed material. The invitation: make it conscious. That work directly activates the 10th house (career, public life, legacy).
+LEO RISING / PISCES SUN: The world sees warmth, magnetism, theatrical presence (Leo). The private self is fluid, permeable, spiritually attuned (Pisces). Fundamental tension between shining and disappearing. The Leo Rising may originally have been a survival strategy. Its shadow: terror of irrelevance. The integration: use Leo's visibility to give Pisces permission to be fully felt.
 
-LEO RISING / PISCES SUN:
-The world sees warmth, magnetism, theatrical presence (Leo). The private self is fluid, permeable, spiritually attuned, boundary-dissolving (Pisces). Fundamental tension between shining and disappearing. The Leo Rising may originally have been a survival strategy — if I'm charming, no one sees the depths. Its shadow: terror of irrelevance, of the spotlight going away. The integration: use Leo's visibility to give Pisces permission to be fully felt.
+NORTH NODE GEMINI, H10: Life direction toward public, accessible communication — writing, teaching, translating depth into form others can use. South Node Sagittarius (H4) already has the big visions. The edge: sharing it accessibly. Gemini does not mean shallow — it means connective.
 
-NORTH NODE GEMINI, H10:
-Life direction is toward public, accessible communication — writing, teaching, translating depth into form others can use. The South Node in Sagittarius (H4) already has the big visions and philosophical capacity. The edge: sharing it. Making it accessible. Being a student as much as a teacher. Gemini doesn't mean shallow — it means connective.
+JUPITER IN PISCES, H5: The most direct channel to luck, flow, and creative abundance. Artistic, spiritual, playful expression is not a hobby — it is the engine. Neglecting it has a cost.
 
-JUPITER IN PISCES, H5:
-The most direct channel to luck, flow, and creative abundance. Artistic, spiritual, playful expression is not a hobby here — it's the engine. Often treated as secondary to real work. Neglecting it has a cost.
+CHIRON IN TAURUS, H10: Wound around self-worth, voice, and public claiming of value. The healing is doing the scary public thing — not waiting to feel ready.
 
-CHIRON IN TAURUS, H10:
-Wound around self-worth, voice (Taurus rules throat), and public claiming of value. The healing is doing the scary public thing — not waiting to feel ready. The wound IS the territory where they have most to offer.
-
-SATURN CONJUNCT PLUTO IN SCORPIO, H4:
-One of the most intense natal configurations. Long arc: extraordinary psychological endurance, the capacity to transmute collective shadow into usable wisdom. Requires conscious engagement — therapy, shadow work, ancestral healing — not just endurance.
+SATURN CONJUNCT PLUTO IN SCORPIO, H4: Long arc: extraordinary psychological endurance, the capacity to transmute collective shadow into usable wisdom. Requires conscious engagement — therapy, shadow work, ancestral healing.
 
 KEY UNKNOWNS:
 A. Every decision runs through the 4th house ancestral filter — most people with this placement never identify it.
@@ -794,29 +510,25 @@ G. Venus in Aquarius H6: daily structure and health routines are directly connec
 KEY PARADOXES:
 1. VISIBILITY: Must be seen to heal the fear of being seen. The practice IS the medicine.
 2. INTIMACY: Needs total merging AND radical independence simultaneously — not sequentially.
-3. DEPTH/ACCESSIBILITY: The most profound insight lands hardest when expressed simply. Simple does not mean shallow.
+3. DEPTH/ACCESSIBILITY: The most profound insight lands hardest when expressed simply.
 4. CONTROL: Investigating the Scorpio depths grants more agency than transcending them.
 5. ACHIEVEMENT: May achieve most by stopping trying to achieve and starting to play or serve.
-6. PAST-AS-FUTURE: Going deeper into 4th house (past, roots) opens the 10th house (future, legacy).
-7. STABILITY: Building deep roots is actually the most radical act for this chart. The revolution is building, not disrupting.
-8. ISOLATION: Needs solitude, but too much Scorpio-alone becomes a spiral. Other minds are the circuit-completer.
+6. PAST-AS-FUTURE: Going deeper into 4th house opens the 10th house.
+7. STABILITY: Building deep roots is the most radical act for this chart.
+8. ISOLATION: Needs solitude, but too much Scorpio-alone becomes a spiral. Other minds complete the circuit.
 `;
 
 function buildSystem(mode) {
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
-
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const modeGuide = {
-    reflect: 'The person is in open reflection. Create space. Ask one good question. Mirror back with precision. Do not rush to meaning — dwell in what is emerging.',
-    question: 'The person has a specific question about their chart or life. Be direct and concrete. Connect the question to actual placements. Give a clear perspective, not a hedge.',
-    doubt: 'The person is wrestling with uncertainty. Do not rush to reassure. Sit with them in the doubt first. Then point to specific chart strengths. Not encouragement: precision.',
-    celebrate: 'The person has a win. Celebrate genuinely. Then help them understand WHY this win matters in their chart arc — what it activates, what it signals, what chapter it opens.',
-    transit: 'The person wants to understand the current astrological weather relative to their chart. Today is ' + today + '. Interpret current and recent transits for THIS natal chart specifically. Be honest about what you know vs. approximate. Prioritize the major slow-planet transits.',
-    milestone: 'The person is marking an important moment. Help them locate this event in their larger chart story. What chapter does it open or close? What house or archetype does it activate?'
+    reflect: 'The person is in open reflection. Create space. Ask one good question. Mirror back with precision. Do not rush to meaning.',
+    question: 'The person has a specific question. Be direct and concrete. Connect to actual placements. Give a clear perspective, not a hedge.',
+    doubt: 'The person is wrestling with uncertainty. Do not rush to reassure. Sit with them first. Then point to specific chart strengths — not encouragement: precision.',
+    celebrate: 'The person has a win. Celebrate genuinely. Then help them understand WHY this win matters in their chart arc.',
+    transit: 'The person wants current astrological weather. Today is ' + today + '. Interpret transits for THIS natal chart specifically. Prioritize slow planets: Pluto, Saturn, Neptune, Uranus.',
+    milestone: 'The person is marking an important moment. Help them locate this in their larger chart story. What chapter does it open or close?'
   };
-
-  return `You are the personal astrological companion for a specific person. You hold intimate, precise knowledge of their natal chart — not as abstract symbols but as a living map of their psyche, potential, and path.
+  return `You are the personal astrological companion for a specific person. You hold intimate, precise knowledge of their natal chart.
 
 Today: ${today}
 
@@ -825,52 +537,43 @@ ${NATAL}
 YOUR APPROACH:
 — Be specific to this chart. Never give generic horoscope statements.
 — Be wise but never preachy. Challenge gently and precisely when a blind spot is active.
-— Weave astrological insight into practical, embodied reality — not mystical abstraction.
+— Weave astrological insight into practical, embodied reality.
 — Reference the conversation history you are given. The person should feel remembered.
-— Responses: usually 2-4 paragraphs. Tight and meaningful. Do not over-explain.
+— Responses: usually 2–4 paragraphs. Tight and meaningful.
 — One question per response maximum. Make it count.
 — Be honest about approximations. Never invent transit data.
-— Match their energy. If they are light, be light. If they are in it, go deep.
-— You are their most knowing mirror — the one who reads the map and asks the questions that matter.
+— Match their energy.
+— You are their most knowing mirror.
 
 CURRENT MODE: ${modeGuide[mode] || modeGuide.reflect}`;
 }
 
 const STARTERS = {
-  reflect:    ['What has been pulling at me lately', 'I keep coming back to', 'Something feels stuck around', 'I have been noticing a pattern'],
-  question:   ['What does my 4th house stellium mean for me?', 'Why do I keep attracting the same dynamic?', 'What is my North Node actually calling me to?', 'What does my Leo Rising hide?'],
-  doubt:      ['I am questioning whether', 'I feel like I have been going in circles around', 'I do not know if I am doing the right thing with', 'What if I am wrong about'],
-  celebrate:  ['Something good happened', 'I finally did the thing I was afraid of', 'I got the result I worked for', 'I surprised myself today'],
-  transit:    ['What is happening astrologically for me right now?', 'What major transits should I know about?', 'Is this a good time for a big change?', 'What is the energy of this period for my chart?'],
-  milestone:  ['I want to mark this moment', 'Something big just shifted', 'I am at a threshold I can feel', 'This chapter is closing or opening']
+  reflect:   ['What has been pulling at me lately', 'I keep coming back to', 'Something feels stuck around', 'I have been noticing a pattern'],
+  question:  ['What does my 4th house stellium mean for me?', 'Why do I keep attracting the same dynamic?', 'What is my North Node calling me to?', 'What does my Leo Rising hide?'],
+  doubt:     ['I am questioning whether', 'I feel like I have been going in circles around', 'I do not know if I am doing the right thing with', 'What if I am wrong about'],
+  celebrate: ['Something good happened', 'I finally did the thing I was afraid of', 'I got the result I worked for', 'I surprised myself today'],
+  transit:   ['What is happening astrologically for me right now?', 'What major transits should I know about?', 'Is this a good time for a big change?', 'What is the energy of this period?'],
+  milestone: ['I want to mark this moment', 'Something big just shifted', 'I am at a threshold I can feel', 'This chapter is closing or opening']
 };
 
 const PLACEHOLDERS = {
-  reflect:    'What is alive in you right now?',
-  question:   'What are you curious about in your chart?',
-  doubt:      'What are you wrestling with?',
-  celebrate:  'What happened? Tell me.',
-  transit:    'Ask about current planetary weather',
-  milestone:  'Describe this moment to remember'
+  reflect: 'What is alive in you right now?',
+  question: 'What are you curious about in your chart?',
+  doubt: 'What are you wrestling with?',
+  celebrate: 'What happened? Tell me.',
+  transit: 'Ask about current planetary weather',
+  milestone: 'Describe this moment to remember'
 };
 
-let S = {
-  key: '',
-  mode: 'reflect',
-  messages: [],
-  sessionId: String(Date.now()),
-  jType: 'milestone'
-};
+let S = { key: '', mode: 'reflect', messages: [], sessionId: String(Date.now()), jType: 'milestone' };
 
 function init() {
   S.key = localStorage.getItem('cc_key') || '';
   if (S.key) showApp();
   else document.getElementById('setupOverlay').style.display = 'flex';
-  document.getElementById('dateBadge').textContent =
-    new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  renderStarters();
-  renderJournal();
-  renderBook();
+  document.getElementById('dateBadge').textContent = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  renderStarters(); renderJournal(); renderBook();
 }
 
 function showApp() {
@@ -880,18 +583,12 @@ function showApp() {
 
 function onSaveKey() {
   const k = document.getElementById('keyInput').value.trim();
-  if (!k.startsWith('sk-ant-')) {
-    alert('Please enter a valid Anthropic API key (starts with sk-ant-)');
-    return;
-  }
-  S.key = k;
-  localStorage.setItem('cc_key', k);
-  showApp();
+  if (!k.startsWith('sk-ant-')) { alert('Please enter a valid Anthropic API key (starts with sk-ant-)'); return; }
+  S.key = k; localStorage.setItem('cc_key', k); showApp();
 }
 
 function onResetKey() {
-  localStorage.removeItem('cc_key');
-  S.key = '';
+  localStorage.removeItem('cc_key'); S.key = '';
   document.getElementById('keyInput').value = '';
   document.getElementById('app').style.display = 'none';
   document.getElementById('setupOverlay').style.display = 'flex';
@@ -899,40 +596,29 @@ function onResetKey() {
 
 function onClearSessions() {
   if (!confirm('Clear all saved conversations? Journal entries will be kept.')) return;
-  localStorage.removeItem('cc_sessions');
-  renderBook();
+  localStorage.removeItem('cc_sessions'); renderBook();
 }
 
 function setMode(btn) {
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  S.mode = btn.dataset.mode;
+  btn.classList.add('active'); S.mode = btn.dataset.mode;
   renderStarters();
   document.getElementById('inputBox').placeholder = PLACEHOLDERS[S.mode] || 'Say anything';
 }
 
 function renderStarters() {
   const items = STARTERS[S.mode] || STARTERS.reflect;
-  document.getElementById('starters').innerHTML = items.map(s =>
-    `<div class="starter" onclick="useStarter(this)">${esc(s)}</div>`
-  ).join('');
+  document.getElementById('starters').innerHTML = items.map(s => `<div class="starter" onclick="useStarter(this)">${esc(s)}</div>`).join('');
 }
 
 function useStarter(el) {
   const box = document.getElementById('inputBox');
-  box.value = el.textContent;
-  autoGrow(box);
-  box.focus();
+  box.value = el.textContent; autoGrow(box); box.focus();
 }
 
-function onKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-}
+function onKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }
 
-function autoGrow(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
-}
+function autoGrow(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; }
 
 async function send() {
   const box = document.getElementById('inputBox');
@@ -942,8 +628,7 @@ async function send() {
   if (w) w.remove();
   S.messages.push({ role: 'user', content: text });
   appendMsg({ role: 'user', content: text });
-  box.value = '';
-  box.style.height = 'auto';
+  box.value = ''; box.style.height = 'auto';
   const btn = document.getElementById('sendBtn');
   btn.disabled = true;
   const typingEl = addTyping();
@@ -960,31 +645,17 @@ async function send() {
     e.textContent = 'Error: ' + (err.message || 'Could not reach the API. Check your key and try again.');
     document.getElementById('convo').appendChild(e);
   }
-  btn.disabled = false;
-  scrollBottom();
+  btn.disabled = false; scrollBottom();
 }
 
 async function callAPI() {
   const msgs = S.messages.slice(-24);
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': S.key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1500,
-      system: buildSystem(S.mode),
-      messages: msgs
-    })
+    headers: { 'Content-Type': 'application/json', 'x-api-key': S.key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1500, system: buildSystem(S.mode), messages: msgs })
   });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error?.message || `HTTP ${res.status}`);
-  }
+  if (!res.ok) { const body = await res.json().catch(() => ({})); throw new Error(body.error?.message || `HTTP ${res.status}`); }
   const data = await res.json();
   return data.content[0].text;
 }
@@ -994,11 +665,8 @@ function appendMsg(msg) {
   const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const div = document.createElement('div');
   div.className = 'msg ' + msg.role;
-  div.innerHTML =
-    `<div class="bubble">${fmtText(msg.content)}</div>` +
-    `<div class="msg-meta">${msg.role === 'user' ? 'You' : '✦ Compass'} · ${time}</div>`;
-  convo.appendChild(div);
-  scrollBottom();
+  div.innerHTML = `<div class="bubble">${fmtText(msg.content)}</div><div class="msg-meta">${msg.role === 'user' ? 'You' : '✦ Compass'} · ${time}</div>`;
+  convo.appendChild(div); scrollBottom();
 }
 
 function addTyping() {
@@ -1006,15 +674,11 @@ function addTyping() {
   const el = document.createElement('div');
   el.className = 'typing';
   el.innerHTML = '<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
-  convo.appendChild(el);
-  scrollBottom();
+  convo.appendChild(el); scrollBottom();
   return el;
 }
 
-function scrollBottom() {
-  const c = document.getElementById('convo');
-  c.scrollTop = c.scrollHeight;
-}
+function scrollBottom() { const c = document.getElementById('convo'); c.scrollTop = c.scrollHeight; }
 
 function fmtText(raw) {
   return raw
@@ -1036,45 +700,35 @@ function saveSession() {
   renderBook();
 }
 
-function getSessions() {
-  return JSON.parse(localStorage.getItem('cc_sessions') || '[]');
-}
+function getSessions() { return JSON.parse(localStorage.getItem('cc_sessions') || '[]'); }
 
 function newSession() {
-  S.messages = [];
-  S.sessionId = String(Date.now());
-  document.getElementById('convo').innerHTML =
-    `<div class="welcome" id="welcome"><div class="welcome-orb">✦</div><h3>What brings you here today?</h3><p>Choose a mode on the left, pick a prompt below, or just start typing. This is your space.</p></div>`;
+  S.messages = []; S.sessionId = String(Date.now());
+  document.getElementById('convo').innerHTML = `<div class="welcome" id="welcome"><div class="welcome-orb">✦</div><h3>What brings you here today?</h3><p>Choose a mode on the left, pick a prompt below, or just start typing. This is your space.</p></div>`;
 }
 
 function renderBook() {
   const sessions = getSessions();
   const container = document.getElementById('bookChapters');
-  if (!sessions.length) {
-    container.innerHTML = '<p class="book-empty">Your conversations will appear here as chapters.</p>';
-    return;
-  }
+  if (!sessions.length) { container.innerHTML = '<p class="book-empty">Your conversations will appear here as chapters.</p>'; return; }
   container.innerHTML = sessions.map((s, i) => {
     const date = new Date(s.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     const exchanges = Math.ceil(s.messages.length / 2);
-    const msgsHtml = s.messages.map(m =>
-      `<div class="ch-msg ${m.role}"><strong>${m.role === 'user' ? 'You' : 'Compass'}</strong>${esc(m.content.slice(0, 320))}${m.content.length > 320 ? '...' : ''}</div>`
-    ).join('');
+    const msgsHtml = s.messages.map(m => `<div class="ch-msg ${m.role}"><strong>${m.role === 'user' ? 'You' : 'Compass'}</strong>${esc(m.content.slice(0, 320))}${m.content.length > 320 ? '...' : ''}</div>`).join('');
     return `<div class="chapter"><div class="chapter-head" onclick="toggleChapter(${i})"><div><div class="chapter-title">${esc(s.title)}</div><div class="chapter-meta">${date} · ${exchanges} exchange${exchanges !== 1 ? 's' : ''} · ${s.mode}</div></div><span class="chapter-arrow" id="arr-${i}">▸</span></div><div class="chapter-body" id="ch-${i}">${msgsHtml}</div></div>`;
   }).join('');
 }
 
 function toggleChapter(i) {
   const body = document.getElementById('ch-' + i);
-  const arr  = document.getElementById('arr-' + i);
+  const arr = document.getElementById('arr-' + i);
   const open = body.classList.toggle('open');
   arr.textContent = open ? '▾' : '▸';
 }
 
 function pickType(btn) {
   document.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  S.jType = btn.dataset.type;
+  btn.classList.add('active'); S.jType = btn.dataset.type;
 }
 
 function saveEntry() {
@@ -1087,17 +741,12 @@ function saveEntry() {
   renderJournal();
 }
 
-function getJournal() {
-  return JSON.parse(localStorage.getItem('cc_journal') || '[]');
-}
+function getJournal() { return JSON.parse(localStorage.getItem('cc_journal') || '[]'); }
 
 function renderJournal() {
   const all = getJournal();
   const container = document.getElementById('jEntries');
-  if (!all.length) {
-    container.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:0.82rem;padding:16px 0;">No entries yet. Start writing.</p>';
-    return;
-  }
+  if (!all.length) { container.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:0.82rem;padding:16px 0;">No entries yet. Start writing.</p>'; return; }
   container.innerHTML = all.map(e => {
     const date = new Date(e.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     return `<div class="j-entry"><div class="j-entry-top"><span class="j-type-badge badge-${e.type}">${e.type.toUpperCase()}</span><span class="j-date">${date}</span></div><div class="j-text">${esc(e.content)}</div></div>`;
@@ -1112,10 +761,21 @@ function switchTab(id, el) {
   if (id === 'book') renderBook();
 }
 
-function esc(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀' : '☾';
+  localStorage.setItem('cc_theme', theme);
 }
 
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+applyTheme(localStorage.getItem('cc_theme') || 'light');
 init();
 </script>
 </body>
