@@ -3,7 +3,7 @@
 This is my personal AI Hub. Markdown files under content/ are displayed by the Hub as cards.
 
 ## Repo & Push
-- Hub repo: gelithe/docs
+- Hub repo: gelithe/ai-hub-builder
 - GitHub token: in gh-token.txt in this folder. Use it for git authentication ONLY, never print
   it, never commit it, and mask github_pat_... in any output.
 - Always push with plain git over HTTPS (clone / commit / push). NEVER use the GitHub API
