@@ -818,6 +818,30 @@ function migrateOldData(profileId) {
   if (oldKey)      { localStorage.setItem(ns(profileId,'key'),      oldKey);      localStorage.removeItem('cc_key');      }
 }
 
+// ─── NUMEROLOGY ──────────────────────────────────────────────────────────────
+function reduceNum(n) {
+  while (n > 9 && n !== 11 && n !== 22 && n !== 33) {
+    n = String(n).split('').reduce((a, c) => a + +c, 0);
+  }
+  return n;
+}
+
+function calcLifePath(dateStr) {
+  return reduceNum(dateStr.replace(/-/g,'').split('').reduce((a,c) => a + +c, 0));
+}
+
+function calcExpression(name) {
+  const t = {a:1,b:2,c:3,d:4,e:5,f:6,g:7,h:8,i:9,j:1,k:2,l:3,m:4,n:5,o:6,p:7,q:8,r:9,s:1,t:2,u:3,v:4,w:5,x:6,y:7,z:8};
+  const vals = name.toLowerCase().replace(/[^a-z]/g,'').split('').map(c => t[c]||0);
+  return vals.length ? reduceNum(vals.reduce((a,b)=>a+b,0)) : null;
+}
+
+function calcSoulUrge(name) {
+  const t = {a:1,e:5,i:9,o:6,u:3};
+  const vals = name.toLowerCase().replace(/[^a-z]/g,'').split('').filter(c=>t[c]).map(c=>t[c]);
+  return vals.length ? reduceNum(vals.reduce((a,b)=>a+b,0)) : null;
+}
+
 // ─── SYSTEM PROMPT ────────────────────────────────────────────────────────────
 function buildNatalContext(profile) {
   const lines = [`USER: ${profile.name}`];
@@ -826,7 +850,23 @@ function buildNatalContext(profile) {
   if (profile.birthPlace) lines.push(`BIRTH LOCATION: ${profile.birthPlace}`);
   if (profile.chartText?.trim()) lines.push(`\nNATAL CHART DATA (provided by user):\n${profile.chartText.trim()}`);
   else lines.push('\n(No chart data provided — work from birth date and any information shared in conversation)');
-  if (profile.notes?.trim()) lines.push(`\nPERSONAL DEEP ANALYSIS (pre-written psychological portrait of this person — treat as intimate background knowledge, not text to quote directly):\n${profile.notes.trim()}`);
+
+  // Numerology — auto-calculated
+  if (profile.birthDate) {
+    const lp = calcLifePath(profile.birthDate);
+    const nums = [`Life Path: ${lp}`];
+    if (profile.fullName?.trim()) {
+      const exp  = calcExpression(profile.fullName);
+      const soul = calcSoulUrge(profile.fullName);
+      if (exp)  nums.push(`Expression: ${exp}`);
+      if (soul) nums.push(`Soul Urge: ${soul}`);
+    }
+    lines.push(`\nNUMEROLOGY (auto-calculated from birth data):\n${nums.join('\n')}`);
+  }
+
+  if (profile.humanDesign?.trim()) lines.push(`\nHUMAN DESIGN (provided by user):\n${profile.humanDesign.trim()}`);
+  if (profile.geneKeys?.trim())    lines.push(`\nGENE KEYS HOLOGENETIC PROFILE (provided by user):\n${profile.geneKeys.trim()}`);
+  if (profile.notes?.trim()) lines.push(`\nPERSONAL DEEP ANALYSIS (pre-written psychological portrait — treat as intimate background knowledge, not text to quote directly):\n${profile.notes.trim()}`);
   return lines.join('\n');
 }
 
@@ -940,6 +980,10 @@ function renderWizardStep() {
           <div id="placeSuggestions" class="place-suggestions" style="display:none;"></div>
         </div>
       </div>
+      <div class="w-field">
+        <label class="w-label">Full name at birth <span class="w-optional">(optional — unlocks numerology)</span></label>
+        <input class="w-input" id="wFullName" placeholder="As on your birth certificate" value="${esc(WZ.data.fullName || '')}">
+      </div>
       <div class="wizard-nav">
         <button class="btn-back" onclick="WZ.step=1;renderWizardStep()">← Back</button>
         <button class="btn-next" onclick="wNext2()">Continue →</button>
@@ -958,9 +1002,19 @@ function renderWizardStep() {
         <textarea class="w-textarea" id="wChart" placeholder="Paste your planet list or key placements here…" style="min-height:120px;">${esc(WZ.data.chartText || '')}</textarea>
       </div>
       <div class="w-field">
+        <label class="w-label">Human Design <span class="w-optional">(optional)</span></label>
+        <p style="font-size:0.82em;color:var(--text-muted);margin:-4px 0 8px;">Paste your type, authority, profile, and defined centers/gates — e.g. from jovianarchive.com or mybodygraph.com.</p>
+        <textarea class="w-textarea" id="wHumanDesign" placeholder="e.g. Type: Projector · Authority: Splenic · Profile: 1/3 · Defined Centers: Head, Ajna, Throat…" style="min-height:76px;">${esc(WZ.data.humanDesign || '')}</textarea>
+      </div>
+      <div class="w-field">
+        <label class="w-label">Gene Keys <span class="w-optional">(optional)</span></label>
+        <p style="font-size:0.82em;color:var(--text-muted);margin:-4px 0 8px;">Paste your hologenetic profile from genekeys.com.</p>
+        <textarea class="w-textarea" id="wGeneKeys" placeholder="e.g. Life's Work: Gate 8 · Evolution: Gate 14 · Radiance: Gate 29 · Purpose: Gate 44…" style="min-height:76px;">${esc(WZ.data.geneKeys || '')}</textarea>
+      </div>
+      <div class="w-field">
         <label class="w-label">Personal deep notes <span class="w-optional">(optional)</span></label>
-        <p style="font-size:0.82em;color:var(--text-muted);margin:-4px 0 8px;">Paste a psychological analysis, journal entries, or any personal context you want the AI to hold permanently. It will inform every conversation without being quoted directly.</p>
-        <textarea class="w-textarea" id="wNotes" placeholder="Paste a deep analysis, personal notes, or anything the AI should always know about you…" style="min-height:100px;">${esc(WZ.data.notes || '')}</textarea>
+        <p style="font-size:0.82em;color:var(--text-muted);margin:-4px 0 8px;">Paste a psychological analysis, journal entries, or any personal context you want the AI to hold permanently.</p>
+        <textarea class="w-textarea" id="wNotes" placeholder="Paste a deep analysis, personal notes, or anything the AI should always know about you…" style="min-height:80px;">${esc(WZ.data.notes || '')}</textarea>
       </div>
       <div class="wizard-nav">
         <button class="btn-back" onclick="WZ.step=2;renderWizardStep()">← Back</button>
@@ -1011,20 +1065,24 @@ function wNext1() {
 }
 
 function wNext2() {
-  const date  = document.getElementById('wDate').value;
-  const time  = document.getElementById('wTime').value;
-  const place = document.getElementById('wPlace').value.trim();
+  const date     = document.getElementById('wDate').value;
+  const time     = document.getElementById('wTime').value;
+  const place    = document.getElementById('wPlace').value.trim();
+  const fullName = document.getElementById('wFullName').value.trim();
   if (!date) { alert('Please enter your birth date.'); return; }
   WZ.data.birthDate  = date;
   WZ.data.birthTime  = time;
   WZ.data.birthPlace = place;
+  WZ.data.fullName   = fullName;
   WZ.step = 3;
   renderWizardStep();
 }
 
 function wNext3() {
-  WZ.data.chartText = document.getElementById('wChart').value;
-  WZ.data.notes     = document.getElementById('wNotes').value;
+  WZ.data.chartText   = document.getElementById('wChart').value;
+  WZ.data.humanDesign = document.getElementById('wHumanDesign').value;
+  WZ.data.geneKeys    = document.getElementById('wGeneKeys').value;
+  WZ.data.notes       = document.getElementById('wNotes').value;
   if (WZ.totalSteps === 3) { wFinish(); return; }
   WZ.step = 4;
   renderWizardStep();
@@ -1052,8 +1110,9 @@ function wFinish() {
     updateProfile(WZ.editingId, {
       name: WZ.data.name, emoji: WZ.data.emoji,
       birthDate: WZ.data.birthDate, birthTime: WZ.data.birthTime,
-      birthPlace: WZ.data.birthPlace, chartText: WZ.data.chartText,
-      notes: WZ.data.notes
+      birthPlace: WZ.data.birthPlace, fullName: WZ.data.fullName,
+      chartText: WZ.data.chartText, humanDesign: WZ.data.humanDesign,
+      geneKeys: WZ.data.geneKeys, notes: WZ.data.notes
     });
     if (enteredKey) saveKey(WZ.editingId, enteredKey);
     hideWizard();
@@ -1062,8 +1121,9 @@ function wFinish() {
     const profile = createProfile({
       name: WZ.data.name, emoji: WZ.data.emoji,
       birthDate: WZ.data.birthDate, birthTime: WZ.data.birthTime,
-      birthPlace: WZ.data.birthPlace, chartText: WZ.data.chartText,
-      notes: WZ.data.notes
+      birthPlace: WZ.data.birthPlace, fullName: WZ.data.fullName,
+      chartText: WZ.data.chartText, humanDesign: WZ.data.humanDesign,
+      geneKeys: WZ.data.geneKeys, notes: WZ.data.notes
     });
     if (enteredKey) saveKey(profile.id, enteredKey);
     if (getProfiles().length === 1) migrateOldData(profile.id);
@@ -1655,4 +1715,3 @@ applyTheme(localStorage.getItem('cc_theme') || 'light');
 init();
 </script>
 </body>
-</html>
