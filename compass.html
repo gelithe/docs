@@ -562,7 +562,7 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 .chapter-meta { font-size: 0.66rem; color: var(--text-muted); margin-top: 2px; }
 .chapter-arrow { color: var(--text-muted); font-size: 0.72rem; flex-shrink: 0; margin-top: 2px; }
 .chapter-body { padding: 0 17px; max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s; }
-.chapter-body.open { max-height: 2000px; padding: 3px 17px 14px; }
+.chapter-body.open { max-height: 30000px; padding: 3px 17px 14px; }
 .ch-msg { font-size: 0.78rem; line-height: 1.65; color: var(--text-muted); margin-bottom: 8px; padding-left: 9px; border-left: 2px solid var(--border); }
 .ch-msg.assistant { border-left-color: var(--gold-dim); color: var(--text); }
 .ch-msg strong { color: var(--text-muted); font-size: 0.65rem; display: block; margin-bottom: 1px; text-transform: uppercase; letter-spacing: 0.06em; }
@@ -602,10 +602,27 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 .btn-primary-full:hover { background: var(--gold-light); }
 
 /* ─── RESPONSIVE ─────────────────────────────────────────────────────────── */
+.menu-btn { display: none; }
+
 @media (max-width: 680px) {
   .app { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
+  .menu-btn { display: flex; }
+  .sidebar {
+    position: fixed;
+    top: 58px; left: 0; bottom: 0;
+    width: min(82vw, 300px);
+    z-index: 600;
+    transform: translateX(-105%);
+    transition: transform 0.25s ease;
+    box-shadow: 4px 0 28px rgba(0,0,0,0.25);
+  }
+  .sidebar.open { transform: translateX(0); }
   .h-sub { display: none; }
+  .date-chip { display: none; }
+  .msg { max-width: 92%; }
+  .convo { padding: 16px 14px; }
+  .starters { padding: 0 14px 10px; }
+  .input-area { padding: 10px 12px 12px; }
 }
 </style>
 </head>
@@ -624,6 +641,7 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 
   <header>
     <div class="h-left">
+      <button class="btn-icon menu-btn" onclick="toggleSidebar()" title="Menu">☰</button>
       <div class="h-orb">✦</div>
       <div>
         <div class="h-title">Chart Compass</div>
@@ -736,6 +754,7 @@ textarea.input-box::placeholder { color: var(--text-muted); }
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2/astronomy.browser.min.js"></script>
 <script>
 // ─── OWNER CONFIGURATION ─────────────────────────────────────────────────────
 // To share this compass with friends using YOUR API key:
@@ -991,25 +1010,23 @@ function renderWizardStep() {
   } else if (WZ.step === 3) {
     inner += `
       <div class="wizard-glyph">◎</div>
-      <h2>Your Chart Data</h2>
-      <p class="wizard-sub">Paste your planet placements below — the Compass becomes much more precise with them.</p>
-      <div class="chart-hint">
-        <strong>To get your chart:</strong> go to <a href="https://astro-seek.com/birth-chart-horoscope-online" target="_blank">AstroSeek.com</a> → Birth Chart → enter your birth details → copy the planet table and paste it here.<br><br>
-        You can also paste from Astro.com or type key placements like: <em>Sun Pisces H7, Moon Sagittarius H4, ASC Leo</em>
+      <h2>Your Chart</h2>
+      <p class="wizard-sub">Everything below is calculated automatically from your birth data — natal chart, Human Design, and Gene Keys. Review, edit, or replace anything.</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;">
+        <div id="calcStatus" style="font-size:0.75rem;color:var(--gold-dim);line-height:1.5;flex:1;"></div>
+        <button class="btn-sm" style="flex-shrink:0;" onclick="autoCalcAll(true)">↻ Recalculate</button>
       </div>
       <div class="w-field">
-        <label class="w-label">Chart data <span class="w-optional">(optional but recommended)</span></label>
-        <textarea class="w-textarea" id="wChart" placeholder="Paste your planet list or key placements here…" style="min-height:120px;">${esc(WZ.data.chartText || '')}</textarea>
+        <label class="w-label">Natal chart</label>
+        <textarea class="w-textarea" id="wChart" placeholder="Calculating… or paste your own from AstroSeek / Astro.com" style="min-height:120px;font-family:monospace;font-size:0.78rem;">${esc(WZ.data.chartText || '')}</textarea>
       </div>
       <div class="w-field">
-        <label class="w-label">Human Design <span class="w-optional">(optional)</span></label>
-        <p style="font-size:0.82em;color:var(--text-muted);margin:-4px 0 8px;">Paste your type, authority, profile, and defined centers/gates — e.g. from jovianarchive.com or mybodygraph.com.</p>
-        <textarea class="w-textarea" id="wHumanDesign" placeholder="e.g. Type: Projector · Authority: Splenic · Profile: 1/3 · Defined Centers: Head, Ajna, Throat…" style="min-height:76px;">${esc(WZ.data.humanDesign || '')}</textarea>
+        <label class="w-label">Human Design</label>
+        <textarea class="w-textarea" id="wHumanDesign" placeholder="Calculating… or paste your own from jovianarchive.com" style="min-height:76px;font-family:monospace;font-size:0.78rem;">${esc(WZ.data.humanDesign || '')}</textarea>
       </div>
       <div class="w-field">
-        <label class="w-label">Gene Keys <span class="w-optional">(optional)</span></label>
-        <p style="font-size:0.82em;color:var(--text-muted);margin:-4px 0 8px;">Paste your hologenetic profile from genekeys.com.</p>
-        <textarea class="w-textarea" id="wGeneKeys" placeholder="e.g. Life's Work: Gate 8 · Evolution: Gate 14 · Radiance: Gate 29 · Purpose: Gate 44…" style="min-height:76px;">${esc(WZ.data.geneKeys || '')}</textarea>
+        <label class="w-label">Gene Keys</label>
+        <textarea class="w-textarea" id="wGeneKeys" placeholder="Calculating… or paste your own from genekeys.com" style="min-height:76px;font-family:monospace;font-size:0.78rem;">${esc(WZ.data.geneKeys || '')}</textarea>
       </div>
       <div class="w-field">
         <label class="w-label">Personal deep notes <span class="w-optional">(optional)</span></label>
@@ -1046,6 +1063,7 @@ function renderWizardStep() {
 
   panel.innerHTML = inner;
   c.appendChild(panel);
+  if (WZ.step === 3) setTimeout(() => autoCalcAll(false), 60);
 }
 
 function pickEmoji(e, el) {
@@ -1097,6 +1115,7 @@ function wFinish() {
     alert('The API key should start with sk-ant- — please check it or leave the field empty.');
     return;
   }
+
   // Require some key if no shared key is available
   if (!enteredKey && !SHARED_KEY) {
     alert('Please enter an Anthropic API key (starts with sk-ant-) to use Chart Compass.');
@@ -1106,25 +1125,21 @@ function wFinish() {
   // Active key for this session: personal key takes priority over shared
   const apiKey = enteredKey || SHARED_KEY;
 
+  const payload = {
+    name: WZ.data.name, emoji: WZ.data.emoji,
+    birthDate: WZ.data.birthDate, birthTime: WZ.data.birthTime,
+    birthPlace: WZ.data.birthPlace, fullName: WZ.data.fullName,
+    lat: WZ.data.lat, lon: WZ.data.lon, tz: WZ.data.tz,
+    chartText: WZ.data.chartText, humanDesign: WZ.data.humanDesign,
+    geneKeys: WZ.data.geneKeys, notes: WZ.data.notes
+  };
   if (WZ.editingId) {
-    updateProfile(WZ.editingId, {
-      name: WZ.data.name, emoji: WZ.data.emoji,
-      birthDate: WZ.data.birthDate, birthTime: WZ.data.birthTime,
-      birthPlace: WZ.data.birthPlace, fullName: WZ.data.fullName,
-      chartText: WZ.data.chartText, humanDesign: WZ.data.humanDesign,
-      geneKeys: WZ.data.geneKeys, notes: WZ.data.notes
-    });
+    updateProfile(WZ.editingId, payload);
     if (enteredKey) saveKey(WZ.editingId, enteredKey);
     hideWizard();
     loadProfile(WZ.editingId);
   } else {
-    const profile = createProfile({
-      name: WZ.data.name, emoji: WZ.data.emoji,
-      birthDate: WZ.data.birthDate, birthTime: WZ.data.birthTime,
-      birthPlace: WZ.data.birthPlace, fullName: WZ.data.fullName,
-      chartText: WZ.data.chartText, humanDesign: WZ.data.humanDesign,
-      geneKeys: WZ.data.geneKeys, notes: WZ.data.notes
-    });
+    const profile = createProfile(payload);
     if (enteredKey) saveKey(profile.id, enteredKey);
     if (getProfiles().length === 1) migrateOldData(profile.id);
     setActiveId(profile.id);
@@ -1167,7 +1182,9 @@ function buildDeepAnalysisPrompt(profile) {
   if (profile.birthDate)       parts.push(`Birth date: ${profile.birthDate}`);
   if (profile.birthTime)       parts.push(`Birth time: ${profile.birthTime}`);
   if (profile.birthPlace)      parts.push(`Birth place: ${profile.birthPlace}`);
-  if (profile.chartText?.trim()) parts.push(`\nNatal chart placements:\n${profile.chartText.trim()}`);
+  if (profile.chartText?.trim())   parts.push(`\nNatal chart placements:\n${profile.chartText.trim()}`);
+  if (profile.humanDesign?.trim()) parts.push(`\nHuman Design:\n${profile.humanDesign.trim()}`);
+  if (profile.geneKeys?.trim())    parts.push(`\nGene Keys profile:\n${profile.geneKeys.trim()}`);
 
   return `Write a deep psychological astrological analysis for ${profile.name}.
 
@@ -1220,22 +1237,20 @@ function onPlaceInput(input) {
 
 async function fetchPlaces(q) {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=7&addressdetails=1&accept-language=en`;
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=7&addressdetails=1&featuretype=settlement&accept-language=en`;
     const res = await fetch(url);
     if (!res.ok) return;
     const raw = await res.json();
-    // Keep cities, towns, villages, municipalities
     const kept = new Set();
     _placeSuggestions = raw
-      .filter(r => ['city','town','village','hamlet','municipality','borough','suburb'].includes(r.type) || r.class === 'place')
       .map(r => {
-        const city    = r.address?.city || r.address?.town || r.address?.village || r.address?.municipality || r.name;
+        const city    = r.address?.city || r.address?.town || r.address?.village || r.address?.municipality || r.address?.county || r.name;
         const state   = r.address?.state || r.address?.county || '';
         const country = r.address?.country || '';
         const key = `${city}|${country}`;
         if (!city || kept.has(key)) return null;
         kept.add(key);
-        return { city, state, country };
+        return { city, state, country, lat: +r.lat, lon: +r.lon };
       })
       .filter(Boolean)
       .slice(0, 5);
@@ -1265,7 +1280,287 @@ function selectPlace(i) {
   if (!p) return;
   const input = document.getElementById('wPlace');
   if (input) input.value = [p.city, p.country].filter(Boolean).join(', ');
+  WZ.data.lat = p.lat;
+  WZ.data.lon = p.lon;
+  WZ.data.tz  = null; // re-resolve for the new place
   hidePlaceSuggestions();
+}
+
+// ─── ASTRO ENGINE (natal chart · Human Design · Gene Keys) ──────────────────
+const AE_SIGNS = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
+const D2R = Math.PI/180, R2D = 180/Math.PI;
+
+function fmtLon(l) {
+  l = ((l % 360) + 360) % 360;
+  const s = Math.floor(l / 30), d = l % 30;
+  return `${AE_SIGNS[s]} ${String(Math.floor(d)).padStart(2,'0')}°${String(Math.floor((d%1)*60)).padStart(2,'0')}'`;
+}
+
+function meanNode(dateUTC) {
+  const jd = dateUTC.getTime()/86400000 + 2440587.5;
+  const T = (jd - 2451545.0)/36525.0;
+  const o = 125.0445479 - 1934.1362891*T + 0.0020754*T*T + T*T*T/467441;
+  return ((o % 360) + 360) % 360;
+}
+
+function eclLonOf(body, date) {
+  return Astronomy.Ecliptic(Astronomy.GeoVector(body, date, true)).elon;
+}
+
+function obliquityAt(dateUTC) {
+  const jd = dateUTC.getTime()/86400000 + 2440587.5;
+  return 23.4392911 - 0.0130042*((jd - 2451545.0)/36525.0);
+}
+
+function anglesAndCusps(dateUTC, lat, lon) {
+  const eps = obliquityAt(dateUTC);
+  const ramc = ((Astronomy.SiderealTime(dateUTC)*15 + lon) % 360 + 360) % 360;
+  const mc  = (Math.atan2(Math.sin(ramc*D2R), Math.cos(ramc*D2R)*Math.cos(eps*D2R))*R2D + 360) % 360;
+  const asc = (Math.atan2(Math.cos(ramc*D2R),
+               -(Math.sin(ramc*D2R)*Math.cos(eps*D2R) + Math.tan(lat*D2R)*Math.sin(eps*D2R)))*R2D + 360) % 360;
+
+  function placidus(offset, frac) {
+    let alpha = (ramc + offset) % 360, lam = 0;
+    for (let i = 0; i < 30; i++) {
+      lam = (Math.atan2(Math.sin(alpha*D2R), Math.cos(alpha*D2R)*Math.cos(eps*D2R))*R2D + 360) % 360;
+      const delta = Math.asin(Math.sin(eps*D2R)*Math.sin(lam*D2R));
+      const x = Math.max(-1, Math.min(1, Math.tan(lat*D2R)*Math.tan(delta)));
+      alpha = (ramc + offset + frac*(Math.asin(x)*R2D)) % 360;
+    }
+    return lam;
+  }
+
+  const c11 = placidus(30, 1/3), c12 = placidus(60, 2/3);
+  const c2 = placidus(120, 2/3), c3 = placidus(150, 1/3);
+  const cusps = [asc, c2, c3, (mc+180)%360, (c11+180)%360, (c12+180)%360,
+                 (asc+180)%360, (c2+180)%360, (c3+180)%360, mc, c11, c12];
+  return { asc, mc, cusps };
+}
+
+function houseOf(lon, cusps) {
+  for (let h = 0; h < 12; h++) {
+    const a = cusps[h], b = cusps[(h+1)%12];
+    if (((lon - a) + 360) % 360 < ((b - a) + 360) % 360) return h + 1;
+  }
+  return 1;
+}
+
+const AE_PLANETS = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'];
+
+function computeChart(dateUTC, lat, lon, withHouses) {
+  const planets = AE_PLANETS.map(p => ({ name: p, lon: eclLonOf(p, dateUTC) }));
+  planets.push({ name: 'N.Node', lon: meanNode(dateUTC) });
+  let angles = null;
+  if (withHouses && lat != null && Math.abs(lat) < 66) {
+    angles = anglesAndCusps(dateUTC, lat, lon);
+    planets.forEach(p => p.house = houseOf(p.lon, angles.cusps));
+  }
+  return { planets, angles };
+}
+
+// Human Design gate wheel: 64 gates × 5.625°, anchored at Gate 41 = 302° (2° Aquarius)
+const GATE_WHEEL = [41,19,13,49,30,55,37,63,22,36,25,17,21,51,42,3,27,24,2,23,8,20,16,35,45,12,15,52,39,53,62,56,31,33,7,4,29,59,40,64,47,6,46,18,48,57,32,50,28,44,1,43,14,34,9,5,26,11,10,58,38,54,61,60];
+
+function gateLine(lon) {
+  const off = ((lon - 302) % 360 + 360) % 360;
+  return { gate: GATE_WHEEL[Math.floor(off / 5.625)], line: Math.floor((off % 5.625) / 0.9375) + 1 };
+}
+
+const HD_CHANNELS = [[1,8],[2,14],[3,60],[4,63],[5,15],[6,59],[7,31],[9,52],[10,20],[10,34],[10,57],[11,56],[12,22],[13,33],[16,48],[17,62],[18,58],[19,49],[20,34],[20,57],[21,45],[23,43],[24,61],[25,51],[26,44],[27,50],[28,38],[29,46],[30,41],[32,54],[34,57],[35,36],[37,40],[39,55],[42,53],[47,64]];
+
+const HD_CENTERS = {
+  'Head': [64,61,63], 'Ajna': [47,24,4,17,43,11],
+  'Throat': [62,23,56,35,12,45,33,8,31,20,16], 'G': [1,13,25,46,2,15,10,7],
+  'Heart': [26,51,21,40], 'Sacral': [34,5,14,29,59,9,3,42,27],
+  'Spleen': [48,57,44,50,32,28,18], 'Solar Plexus': [36,22,37,6,49,55,30],
+  'Root': [58,38,54,53,60,52,19,39,41]
+};
+const HD_MOTORS = ['Sacral','Solar Plexus','Heart','Root'];
+
+function centerOfGate(g) {
+  for (const c in HD_CENTERS) if (HD_CENTERS[c].includes(g)) return c;
+  return null;
+}
+
+function hdActivations(date) {
+  const sun = eclLonOf('Sun', date);
+  const node = meanNode(date);
+  const list = [
+    { body: 'Sun', lon: sun }, { body: 'Earth', lon: (sun+180)%360 },
+    { body: 'Moon', lon: eclLonOf('Moon', date) },
+    { body: 'N.Node', lon: node }, { body: 'S.Node', lon: (node+180)%360 }
+  ];
+  for (const p of ['Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'])
+    list.push({ body: p, lon: eclLonOf(p, date) });
+  list.forEach(a => Object.assign(a, gateLine(a.lon)));
+  return list;
+}
+
+function computeHD(birthUTC, designUTC) {
+  const pers = hdActivations(birthUTC), des = hdActivations(designUTC);
+  const gates = new Set([...pers, ...des].map(a => a.gate));
+
+  const channels = HD_CHANNELS.filter(([a,b]) => gates.has(a) && gates.has(b));
+  const defined = new Set(), edges = [];
+  channels.forEach(([a,b]) => {
+    const ca = centerOfGate(a), cb = centerOfGate(b);
+    defined.add(ca); defined.add(cb);
+    edges.push([ca, cb]);
+  });
+
+  function connected(from, to) {
+    const seen = new Set([from]), q = [from];
+    while (q.length) {
+      const c = q.shift();
+      if (c === to) return true;
+      edges.forEach(([a,b]) => {
+        if (a === c && !seen.has(b)) { seen.add(b); q.push(b); }
+        if (b === c && !seen.has(a)) { seen.add(a); q.push(a); }
+      });
+    }
+    return false;
+  }
+  const motorToThroat = HD_MOTORS.some(m => defined.has(m) && connected(m, 'Throat'));
+
+  let type;
+  if (!defined.size) type = 'Reflector';
+  else if (defined.has('Sacral')) type = motorToThroat ? 'Manifesting Generator' : 'Generator';
+  else if (motorToThroat) type = 'Manifestor';
+  else type = 'Projector';
+
+  let authority;
+  if (type === 'Reflector') authority = 'Lunar (wait a full moon cycle)';
+  else if (defined.has('Solar Plexus')) authority = 'Emotional';
+  else if (defined.has('Sacral')) authority = 'Sacral';
+  else if (defined.has('Spleen')) authority = 'Splenic';
+  else if (defined.has('Heart')) authority = 'Ego';
+  else if (defined.has('G')) authority = 'Self-Projected';
+  else authority = 'Mental / Environmental';
+
+  return { type, authority, profile: `${pers[0].line}/${des[0].line}`,
+           defined: [...defined], channels, pers, des };
+}
+
+// ─── AUTO-CALC ORCHESTRATION ─────────────────────────────────────────────────
+async function fetchTimezone(lat, lon) {
+  try {
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&timezone=auto`);
+    if (!res.ok) return null;
+    return (await res.json()).timezone || null;
+  } catch { return null; }
+}
+
+async function geocodeBirthPlace() {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(WZ.data.birthPlace)}&format=json&limit=1&featuretype=settlement&accept-language=en`);
+    const arr = await res.json();
+    if (arr[0]) { WZ.data.lat = +arr[0].lat; WZ.data.lon = +arr[0].lon; }
+  } catch {}
+}
+
+function localToUTC(dateStr, timeStr, tz, lonFallback) {
+  const [y,mo,d] = dateStr.split('-').map(Number);
+  const [hh,mm]  = (timeStr || '12:00').split(':').map(Number);
+  const base = Date.UTC(y, mo-1, d, hh, mm);
+  if (!tz) {
+    const offMin = lonFallback != null ? Math.round(lonFallback/15)*60 : 0;
+    return new Date(base - offMin*60000);
+  }
+  let guess = base;
+  const dtf = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longOffset' });
+  for (let i = 0; i < 3; i++) {
+    const name = dtf.formatToParts(new Date(guess)).find(p => p.type === 'timeZoneName').value;
+    const m = name.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+    const offMin = m ? (m[1]==='-'?-1:1) * (+m[2]*60 + +(m[3]||0)) : 0;
+    const next = base - offMin*60000;
+    if (next === guess) break;
+    guess = next;
+  }
+  return new Date(guess);
+}
+
+function buildChartText(chart, hasTime) {
+  const lines = [];
+  chart.planets.forEach(p => lines.push(`${p.name.padEnd(8)} ${fmtLon(p.lon)}${p.house ? '  ·  House ' + p.house : ''}`));
+  if (chart.angles) {
+    lines.push(`ASC      ${fmtLon(chart.angles.asc)}`);
+    lines.push(`MC       ${fmtLon(chart.angles.mc)}`);
+    lines.push('');
+    lines.push('(auto-calculated · Placidus houses · tropical zodiac)');
+  } else {
+    lines.push('');
+    lines.push(hasTime
+      ? '(auto-calculated · houses omitted — location missing or polar latitude)'
+      : '(auto-calculated at 12:00 — no birth time: ASC/houses omitted, Moon approximate)');
+  }
+  return lines.join('\n');
+}
+
+function buildHDText(hd, hasTime) {
+  const gl = a => `${a.body} ${a.gate}.${a.line}`;
+  const lines = [
+    `Type: ${hd.type}`,
+    `Authority: ${hd.authority}`,
+    `Profile: ${hd.profile}`,
+    `Defined centers: ${hd.defined.join(', ') || 'none'}`,
+    `Channels: ${hd.channels.map(c => c.join('-')).join(', ') || 'none'}`,
+    `Personality: ${hd.pers.map(gl).join(' · ')}`,
+    `Design: ${hd.des.map(gl).join(' · ')}`
+  ];
+  if (!hasTime) lines.push('(⚠ calculated without birth time — type/authority may be inaccurate)');
+  return lines.join('\n');
+}
+
+function buildGKText(hd, hasTime) {
+  const f = (arr, body) => { const a = arr.find(x => x.body === body); return `${a.gate}.${a.line}`; };
+  const lines = [
+    `Life's Work: ${f(hd.pers,'Sun')}`,
+    `Evolution: ${f(hd.pers,'Earth')}`,
+    `Radiance: ${f(hd.des,'Sun')}`,
+    `Purpose: ${f(hd.des,'Earth')}`
+  ];
+  if (!hasTime) lines.push('(calculated without birth time — lines may shift)');
+  return lines.join('\n');
+}
+
+async function autoCalcAll(force) {
+  const st = document.getElementById('calcStatus');
+  const chartEl = document.getElementById('wChart');
+  const hdEl = document.getElementById('wHumanDesign');
+  const gkEl = document.getElementById('wGeneKeys');
+  if (!chartEl || !st) return;
+  if (!WZ.data.birthDate) { st.textContent = 'Add your birth date in the previous step to calculate automatically.'; return; }
+  if (!force && (chartEl.value.trim() || hdEl.value.trim() || gkEl.value.trim())) {
+    st.textContent = '✓ Using the data below — tap Recalculate to compute fresh from birth data.';
+    return;
+  }
+  if (typeof Astronomy === 'undefined') {
+    st.textContent = 'Calculation engine could not load — you can paste your chart manually below.';
+    return;
+  }
+  try {
+    st.textContent = '☉ Calculating your chart…';
+    if (WZ.data.lat == null && WZ.data.birthPlace) await geocodeBirthPlace();
+    if (!WZ.data.tz && WZ.data.lat != null) WZ.data.tz = await fetchTimezone(WZ.data.lat, WZ.data.lon);
+
+    const hasTime = !!WZ.data.birthTime;
+    const utc = localToUTC(WZ.data.birthDate, WZ.data.birthTime, WZ.data.tz, WZ.data.lon);
+    const chart = computeChart(utc, WZ.data.lat, WZ.data.lon, hasTime && WZ.data.lat != null);
+    chartEl.value = buildChartText(chart, hasTime);
+
+    const sunLon = chart.planets[0].lon;
+    const design = Astronomy.SearchSunLongitude((sunLon - 88 + 360) % 360,
+                     new Date(utc.getTime() - 120*86400e3), 60);
+    if (design) {
+      const hd = computeHD(utc, design.date);
+      hdEl.value = buildHDText(hd, hasTime);
+      gkEl.value = buildGKText(hd, hasTime);
+    }
+    st.textContent = '✓ Calculated automatically from your birth data — review or edit anything below.'
+      + (hasTime ? '' : ' No birth time given, so houses and ASC are omitted.');
+  } catch (e) {
+    st.textContent = 'Auto-calculation failed — you can paste data manually below.';
+  }
 }
 
 // ─── APP INIT ────────────────────────────────────────────────────────────────
@@ -1410,6 +1705,7 @@ function addNewProfile() {
 
 function editProfile() {
   const id = getActiveId();
+  closeSidebar();
   if (id) showWizard(id);
 }
 
@@ -1428,7 +1724,11 @@ function setMode(btn) {
   S.mode = btn.dataset.mode;
   renderStarters();
   document.getElementById('inputBox').placeholder = PLACEHOLDERS[S.mode] || 'Say anything…';
+  closeSidebar();
 }
+
+function toggleSidebar() { document.querySelector('.sidebar').classList.toggle('open'); }
+function closeSidebar()  { document.querySelector('.sidebar').classList.remove('open'); }
 
 function renderStarters() {
   const items = STARTERS[S.mode] || STARTERS.reflect;
@@ -1590,7 +1890,7 @@ function renderBook() {
     const date = new Date(s.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     const exchanges = Math.ceil(s.messages.length / 2);
     const msgsHtml = s.messages.map(m =>
-      `<div class="ch-msg ${m.role}"><strong>${m.role === 'user' ? 'You' : 'Compass'}</strong>${esc(m.content.slice(0, 320))}${m.content.length > 320 ? '…' : ''}</div>`
+      `<div class="ch-msg ${m.role}"><strong>${m.role === 'user' ? 'You' : 'Compass'}</strong>${esc(m.content)}</div>`
     ).join('');
     return `
       <div class="chapter">
@@ -1601,9 +1901,29 @@ function renderBook() {
           </div>
           <span class="chapter-arrow" id="arr-${i}">▸</span>
         </div>
-        <div class="chapter-body" id="ch-${i}">${msgsHtml}</div>
+        <div class="chapter-body" id="ch-${i}">
+          <button class="btn-sm" style="margin:4px 0 12px;color:var(--gold);border-color:var(--border-active);" onclick="resumeSession('${s.id}')">↩ Continue this conversation</button>
+          ${msgsHtml}
+        </div>
       </div>`;
   }).join('');
+}
+
+function resumeSession(id) {
+  const pid = getActiveId();
+  if (!pid) return;
+  const s = getSessions(pid).find(x => x.id === id);
+  if (!s) return;
+  S.messages = [...s.messages];
+  S.sessionId = s.id;
+  S.mode = s.mode || 'reflect';
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === S.mode));
+  renderStarters();
+  document.getElementById('inputBox').placeholder = PLACEHOLDERS[S.mode] || 'Say anything…';
+  const convo = document.getElementById('convo');
+  convo.innerHTML = '';
+  s.messages.forEach(m => appendMsg(m));
+  switchTab('compass', document.querySelector('.tab'));
 }
 
 function toggleChapter(i) {
@@ -1715,3 +2035,4 @@ applyTheme(localStorage.getItem('cc_theme') || 'light');
 init();
 </script>
 </body>
+</html>
