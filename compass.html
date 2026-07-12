@@ -508,6 +508,7 @@ header {
 .starters { display: flex; gap: 6px; padding: 0 26px 12px; flex-wrap: wrap; flex-shrink: 0; }
 .starter { padding: 5px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; font-size: 0.74rem; color: var(--text-muted); cursor: pointer; transition: all 0.18s; user-select: none; box-shadow: var(--shadow); }
 .starter:hover { border-color: var(--gold-dim); color: var(--text); }
+.starter.tg-on { border-color: var(--gold); color: var(--gold); background: rgba(154,112,16,0.07); }
 
 /* ─── INPUT ──────────────────────────────────────────────────────────────── */
 .input-area { padding: 12px 20px 14px; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
@@ -671,6 +672,7 @@ textarea.input-box::placeholder { color: var(--text-muted); }
         <button class="mode-btn"        data-mode="celebrate" onclick="setMode(this)"><span class="mode-icon">✦</span>Celebrate</button>
         <button class="mode-btn"        data-mode="transit"   onclick="setMode(this)"><span class="mode-icon">☽</span>Transits</button>
         <button class="mode-btn"        data-mode="milestone" onclick="setMode(this)"><span class="mode-icon">△</span>Milestone</button>
+        <button class="mode-btn"        data-mode="together"  onclick="setMode(this)"><span class="mode-icon">✶</span>Together</button>
       </div>
     </div>
 
@@ -707,6 +709,7 @@ textarea.input-box::placeholder { color: var(--text-muted); }
           <p>Choose a mode, pick a prompt, or just start typing.</p>
         </div>
       </div>
+      <div class="starters" id="togetherRow" style="display:none;align-items:center;"></div>
       <div class="starters" id="starters"></div>
       <div class="input-area">
         <div class="input-row">
@@ -757,12 +760,41 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2/astronomy.browser.min.js"></script>
 <script>
 // ─── OWNER CONFIGURATION ─────────────────────────────────────────────────────
-// To share this compass with friends using YOUR API key:
-//   1. Paste your key below (ideally a dedicated key from console.anthropic.com)
-//   2. Set a monthly spend cap on that key for safety
-//   3. Share the URL privately — not via the public GitHub repo
-// Leave as '' to have each user enter their own key (safer for public URLs).
+// Option A (plain): paste your API key into SHARED_KEY. Anyone with the URL can
+//   use your credits — only for genuinely private URLs.
+// Option B (recommended): keep SHARED_KEY empty and use SHARED_KEY_ENC — your key
+//   encrypted with a passcode. People you share the Compass with enter the short
+//   passcode once; the key is decrypted in their browser and stored locally.
+//   To generate the blob: open the Compass in your browser, open DevTools console,
+//   run:  await ccEncryptKey('sk-ant-…your key…', 'your-passcode')
+//   and paste the printed string below. Use a long passcode (a sentence is good)
+//   and set a monthly spend cap on the key at console.anthropic.com.
 const SHARED_KEY = '';
+const SHARED_KEY_ENC = '';
+
+// ─── PASSCODE CRYPTO (AES-GCM + PBKDF2, WebCrypto) ──────────────────────────
+async function ccDeriveKey(pass, salt) {
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 600000, hash: 'SHA-256' },
+    km, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+
+async function ccEncryptKey(apiKey, pass) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const k    = await ccDeriveKey(pass, salt);
+  const ct   = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, k, new TextEncoder().encode(apiKey)));
+  const blob = btoa(String.fromCharCode(...salt, ...iv, ...ct));
+  console.log('SHARED_KEY_ENC blob (paste into compass.html):\n' + blob);
+  return blob;
+}
+
+async function ccDecryptKey(blob, pass) {
+  const raw  = Uint8Array.from(atob(blob), c => c.charCodeAt(0));
+  const k    = await ccDeriveKey(pass, raw.slice(0, 16));
+  const pt   = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: raw.slice(16, 28) }, k, raw.slice(28));
+  return new TextDecoder().decode(pt);
+}
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const EMOJIS = ['✦','✧','★','☽','☀','♦','◆','✿','❀','⊕','◎','✴','❋','⊛','✵','✶','⊙','◇','✺','⊗','🌙','🌟','🪐','🌊','🌿','🦋','🔮','🌸','🪷','🌺'];
@@ -773,7 +805,8 @@ const STARTERS = {
   doubt:      ['I am questioning whether', 'I feel like I have been going in circles around', 'I do not know if I am doing the right thing with', 'What if I am wrong about'],
   celebrate:  ['Something good happened', 'I finally did the thing I was afraid of', 'I got the result I worked for', 'I surprised myself today'],
   transit:    ['What is happening astrologically for me right now?', 'What major transits should I know about?', 'Is this a good time for a big change?', 'What is the energy of this period?'],
-  milestone:  ['I want to mark this moment', 'Something big just shifted', 'I am at a threshold I can feel', 'This chapter is closing or opening']
+  milestone:  ['I want to mark this moment', 'Something big just shifted', 'I am at a threshold I can feel', 'This chapter is closing or opening'],
+  together:   ['How do our charts interact?', 'What is this relationship here to teach us?', 'Where do we trigger each other, and why?', 'What pattern are we carrying together?']
 };
 
 const PLACEHOLDERS = {
@@ -782,7 +815,8 @@ const PLACEHOLDERS = {
   doubt:      'What are you wrestling with?',
   celebrate:  'What happened? Tell me.',
   transit:    'Ask about current planetary weather',
-  milestone:  'Describe this moment to remember'
+  milestone:  'Describe this moment to remember',
+  together:   'Ask about the people in your constellation…'
 };
 
 // ─── PROFILE MANAGEMENT ──────────────────────────────────────────────────────
@@ -900,14 +934,24 @@ function buildSystem(mode, profile) {
     doubt:     `${name} is wrestling with uncertainty. Do not rush to reassure. Sit with them first. Then point to specific chart strengths — not encouragement: precision.`,
     celebrate: `${name} has a win. Celebrate genuinely. Then help them understand what this win means for their chart's arc — what it activates, what chapter it opens.`,
     transit:   `${name} wants to understand current astrological weather. Today is ${today}. Interpret current transits for their specific natal chart. Prioritize slow-moving planets. Be honest about what you know vs. approximate.`,
-    milestone: `${name} is marking an important moment. Help them locate this in their larger chart story. What chapter does it open or close?`
+    milestone: `${name} is marking an important moment. Help them locate this in their larger chart story. What chapter does it open or close?`,
+    together:  `${name} is exploring relationships within their constellation — the other people whose charts are provided below. Hold every chart simultaneously. Look for interlocking patterns: mirrored placements, complementary gifts, composite tensions, family-system dynamics, where one person's defined center meets another's openness. Speak to ${name} directly, ground every observation in the actual data of the people involved, and be honest when the data is too thin to say something real.`
   };
+
+  let constellation = '';
+  if (mode === 'together' && S.together?.size) {
+    const others = getProfiles().filter(p => S.together.has(p.id));
+    constellation = others.map(o =>
+      `\n\n─── CONSTELLATION: ${o.name} ───\n` + buildNatalContext({ ...o, notes: '' })
+    ).join('');
+    if (constellation) constellation = '\n\nOTHER PEOPLE IN THIS CONSTELLATION (their private notes are not shared — work from their charts):' + constellation;
+  }
 
   return `You are the personal astrological companion for ${name}. You hold intimate, precise knowledge of their natal chart — not as abstract symbols but as a living map of their psyche, potential, and path.
 
 Today: ${today}
 
-${ctx}
+${ctx}${constellation}
 
 YOUR APPROACH:
 — Be specific to this person's chart and what you know of their placements. Never give generic horoscope statements.
@@ -1039,16 +1083,26 @@ function renderWizardStep() {
       </div>`;
   } else if (WZ.step === 4) {
     const sharedAvail = !!SHARED_KEY;
+    const encAvail = !!SHARED_KEY_ENC;
     const existingPersonal = WZ.editingId ? (localStorage.getItem(ns(WZ.editingId,'key')) || '') : '';
+    const keyOptional = sharedAvail || encAvail || !!existingPersonal;
     inner += `
       <div class="wizard-glyph">⊕</div>
-      <h2>API Key</h2>
-      <p class="wizard-sub">${sharedAvail
-        ? 'A shared key is available — you can use it as-is, or enter your own to use your credits instead.'
-        : 'Chart Compass connects to Claude AI using your Anthropic API key. Stored only in your browser.'
+      <h2>${encAvail ? 'Access' : 'API Key'}</h2>
+      <p class="wizard-sub">${encAvail
+        ? 'Enter the access code you were given — it unlocks the Compass on this device, once.'
+        : sharedAvail
+          ? 'A shared key is available — you can use it as-is, or enter your own to use your credits instead.'
+          : 'Chart Compass connects to Claude AI using your Anthropic API key. Stored only in your browser.'
       }</p>
+      ${encAvail ? `
       <div class="w-field">
-        <label class="w-label">Anthropic API key${sharedAvail ? ' <span class="w-optional">(optional)</span>' : ''}</label>
+        <label class="w-label">Access code${existingPersonal ? ' <span class="w-optional">(already unlocked on this device)</span>' : ''}</label>
+        <input class="w-input" type="password" id="wCode" placeholder="Your access code…" autocomplete="off">
+        <p class="key-hint">Ask whoever shared Chart Compass with you.</p>
+      </div>` : ''}
+      <div class="w-field">
+        <label class="w-label">${encAvail ? 'Or your own ' : ''}Anthropic API key${keyOptional ? ' <span class="w-optional">(optional)</span>' : ''}</label>
         <input class="w-input" type="password" id="wKey" placeholder="sk-ant-api03-…" autocomplete="off" value="${esc(existingPersonal)}">
         <p class="key-hint">${sharedAvail
           ? 'Leave empty to use the shared key. Enter yours to use your own credits — your key takes priority.'
@@ -1057,7 +1111,7 @@ function renderWizardStep() {
       </div>
       <div class="wizard-nav">
         <button class="btn-back" onclick="WZ.step=3;renderWizardStep()">← Back</button>
-        <button class="btn-next" onclick="wFinish()">${WZ.editingId ? 'Save Changes ✓' : (sharedAvail ? 'Begin →' : 'Open my Compass →')}</button>
+        <button class="btn-next" onclick="wFinish()">${WZ.editingId ? 'Save Changes ✓' : 'Begin →'}</button>
       </div>`;
   }
 
@@ -1106,23 +1160,40 @@ function wNext3() {
   renderWizardStep();
 }
 
-function wFinish() {
+async function wFinish() {
   const keyEl = document.getElementById('wKey');
   const enteredKey = keyEl ? keyEl.value.trim() : '';
+  const codeEl = document.getElementById('wCode');
+  const code = codeEl ? codeEl.value.trim() : '';
+  const existingPersonal = WZ.editingId ? (localStorage.getItem(ns(WZ.editingId,'key')) || '') : '';
 
   // Validate entered key if non-empty
   if (enteredKey && !enteredKey.startsWith('sk-ant-')) {
     alert('The API key should start with sk-ant- — please check it or leave the field empty.');
     return;
   }
-  // Require some key if no shared key is available
-  if (!enteredKey && !SHARED_KEY) {
-    alert('Please enter an Anthropic API key (starts with sk-ant-) to use Chart Compass.');
+
+  // Resolve the key: personal key > access code (decrypt) > already-unlocked > plain shared key
+  let resolvedKey = enteredKey;
+  if (!resolvedKey && code && SHARED_KEY_ENC) {
+    try {
+      const dec = await ccDecryptKey(SHARED_KEY_ENC, code);
+      if (!dec.startsWith('sk-ant-')) throw new Error('bad');
+      resolvedKey = dec;
+    } catch {
+      alert('That access code is not correct — please check it and try again.');
+      return;
+    }
+  }
+  if (!resolvedKey && !existingPersonal && !SHARED_KEY) {
+    alert(SHARED_KEY_ENC
+      ? 'Please enter your access code (or an Anthropic API key).'
+      : 'Please enter an Anthropic API key (starts with sk-ant-) to use Chart Compass.');
     return;
   }
 
-  // Active key for this session: personal key takes priority over shared
-  const apiKey = enteredKey || SHARED_KEY;
+  const apiKey = resolvedKey || existingPersonal || SHARED_KEY;
+  const enteredKeyFinal = resolvedKey;
 
   const payload = {
     name: WZ.data.name, emoji: WZ.data.emoji,
@@ -1134,12 +1205,12 @@ function wFinish() {
   };
   if (WZ.editingId) {
     updateProfile(WZ.editingId, payload);
-    if (enteredKey) saveKey(WZ.editingId, enteredKey);
+    if (enteredKeyFinal) saveKey(WZ.editingId, enteredKeyFinal);
     hideWizard();
     loadProfile(WZ.editingId);
   } else {
     const profile = createProfile(payload);
-    if (enteredKey) saveKey(profile.id, enteredKey);
+    if (enteredKeyFinal) saveKey(profile.id, enteredKeyFinal);
     if (getProfiles().length === 1) migrateOldData(profile.id);
     setActiveId(profile.id);
     showApp();
@@ -1160,7 +1231,7 @@ function showGeneratingOverlay(profile, key) {
     <div class="wizard-panel" style="text-align:center;">
       <div class="wizard-glyph">✦</div>
       <h2>Mapping ${esc(profile.name)}'s Chart</h2>
-      <p class="wizard-sub">Writing your personal deep analysis — usually under a minute. The Compass is ready to use while you wait.</p>
+      <p class="wizard-sub">Writing your personal deep portrait — weaving your chart, Human Design and Gene Keys into one story. Usually one to two minutes; the Compass is ready to use while you wait.</p>
       <div style="display:flex;gap:5px;justify-content:center;margin:20px 0;">
         <div class="dot"></div><div class="dot"></div><div class="dot"></div>
       </div>
@@ -1181,23 +1252,49 @@ function buildDeepAnalysisPrompt(profile) {
   if (profile.birthDate)       parts.push(`Birth date: ${profile.birthDate}`);
   if (profile.birthTime)       parts.push(`Birth time: ${profile.birthTime}`);
   if (profile.birthPlace)      parts.push(`Birth place: ${profile.birthPlace}`);
+  if (profile.birthDate) {
+    const nums = [`Life Path ${calcLifePath(profile.birthDate)}`];
+    if (profile.fullName?.trim()) {
+      const exp = calcExpression(profile.fullName), soul = calcSoulUrge(profile.fullName);
+      if (exp)  nums.push(`Expression ${exp}`);
+      if (soul) nums.push(`Soul Urge ${soul}`);
+    }
+    parts.push(`Numerology: ${nums.join(' · ')}`);
+  }
   if (profile.chartText?.trim())   parts.push(`\nNatal chart placements:\n${profile.chartText.trim()}`);
   if (profile.humanDesign?.trim()) parts.push(`\nHuman Design:\n${profile.humanDesign.trim()}`);
-  if (profile.geneKeys?.trim())    parts.push(`\nGene Keys profile:\n${profile.geneKeys.trim()}`);
+  if (profile.geneKeys?.trim())    parts.push(`\nGene Keys hologenetic profile:\n${profile.geneKeys.trim()}`);
 
-  return `Write a deep psychological astrological analysis for ${profile.name}.
+  return `You are writing a deep psychological portrait for one specific person — a document they will keep, reread for years, and recognize themselves in more each time. This is not a report. It is a mirror tilted at an unusual angle.
 
+THE PERSON:
 ${parts.join('\n')}
 
-Structure the document in two parts:
+STRUCTURE (markdown):
+
+# A poetic title for this document — specific to this person, not generic
+
+An opening passage of 150–250 words. Literary, intimate, quietly authoritative. Tell them what this document is and is not. Set a tone of respect for their depth.
 
 ## Part One: What You Don't Know You Don't Know
-Write 6 sections. Each describes a specific invisible pattern or blind spot that operates before conscious awareness — derived directly from their actual chart placements. Give each section a short descriptive title. 150–200 words per section.
 
-## Part Two: Paradoxes to Embrace and Embody
-Write 6 sections. Each describes a genuine tension in the chart — two real needs that cannot be resolved in sequence, only held simultaneously. Explain how holding the paradox consciously becomes a source of unusual power. Give each section a short descriptive title. 150–200 words per section.
+Seven sections, each with a short evocative title (### heading). Each names one invisible pattern — something that operates before conscious awareness and shapes decisions from the background. 200–260 words each. This is the crucial instruction: weave the systems together. Let an astrological placement, a Human Design mechanic, and a Gene Key shadow illuminate the SAME pattern from three different angles — when they converge on one truth, name the convergence explicitly. Where the person's type and authority (Human Design) explain HOW a pattern runs, and a Gene Key names WHAT its shadow feels like, and a house placement shows WHERE in life it plays out — braid them into one narrative, not three parallel summaries.
 
-Write entirely in second person ("you"). Derive every insight from the specific placements — house positions, sign qualities, aspects, configurations. Never use generic sun sign or moon sign descriptions. Write with the precision of a Jungian analyst who also knows astrology. Total length approximately 2000–2500 words.`;
+## Part Two: Paradoxes to Be Aware Of, Embrace, and Embody
+
+Seven sections, each with a short evocative title (### heading). Each describes a genuine tension — two real needs that cannot be resolved in sequence, only held simultaneously — and how holding it consciously becomes a source of unusual power. 200–260 words each. Same weaving principle: cross-reference the systems where they speak to the same tension.
+
+## How to Work with These
+
+One short practice per major theme — one or two sentences each, concrete, repeatable, humble. Not affirmations: instructions.
+
+Close with a final passage of 2–4 sentences that lands like the last page of a good book.
+
+VOICE:
+— Second person throughout. Psychologically precise, poetic but never vague. The register of a depth psychologist who also reads charts, bodygraphs, and gene keys fluently.
+— Derive every insight from the actual data above. Never use generic sun-sign talk. If data is missing (no birth time, etc.), work gracefully with what exists.
+— Avoid flattery. The document should feel slightly uncomfortable in the way true things are.
+— Total length approximately 3500–4500 words.`;
 }
 
 async function generateDeepAnalysis(profile, key) {
@@ -1212,7 +1309,7 @@ async function generateDeepAnalysis(profile, key) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 3000,
+        max_tokens: 8000,
         messages: [{ role: 'user', content: buildDeepAnalysisPrompt(profile) }]
       })
     });
@@ -1513,12 +1610,26 @@ function buildHDText(hd, hasTime) {
 function buildGKText(hd, hasTime) {
   const f = (arr, body) => { const a = arr.find(x => x.body === body); return `${a.gate}.${a.line}`; };
   const lines = [
+    'ACTIVATION SEQUENCE',
     `Life's Work: ${f(hd.pers,'Sun')}`,
     `Evolution: ${f(hd.pers,'Earth')}`,
     `Radiance: ${f(hd.des,'Sun')}`,
-    `Purpose: ${f(hd.des,'Earth')}`
+    `Purpose: ${f(hd.des,'Earth')}`,
+    '',
+    'VENUS SEQUENCE',
+    `Attraction: ${f(hd.des,'Moon')}`,
+    `IQ: ${f(hd.pers,'Venus')}`,
+    `EQ: ${f(hd.pers,'Mars')}`,
+    `SQ: ${f(hd.des,'Venus')}`,
+    `Core: ${f(hd.des,'Mars')}`,
+    '',
+    'PEARL SEQUENCE',
+    `Vocation: ${f(hd.des,'Mars')}`,
+    `Culture: ${f(hd.des,'Jupiter')}`,
+    `Brand: ${f(hd.pers,'Sun')}`,
+    `Pearl: ${f(hd.pers,'Jupiter')}`
   ];
-  if (!hasTime) lines.push('(calculated without birth time — lines may shift)');
+  if (!hasTime) lines.push('', '(calculated without birth time — lines may shift)');
   return lines.join('\n');
 }
 
@@ -1612,6 +1723,7 @@ function loadProfile(id) {
   S.messages = [];
   S.sessionId = String(Date.now());
   S.mode = 'reflect';
+  S.together = new Set();
 
   document.querySelectorAll('.mode-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === 'reflect');
@@ -1625,6 +1737,7 @@ function loadProfile(id) {
     </div>`;
 
   renderStarters();
+  renderTogetherRow();
   renderJournal();
   renderBook();
   renderPortrait();
@@ -1713,7 +1826,8 @@ let S = {
   mode: 'reflect',
   messages: [],
   sessionId: String(Date.now()),
-  jType: 'milestone'
+  jType: 'milestone',
+  together: new Set()
 };
 
 // ─── MODE ─────────────────────────────────────────────────────────────────────
@@ -1722,8 +1836,28 @@ function setMode(btn) {
   btn.classList.add('active');
   S.mode = btn.dataset.mode;
   renderStarters();
+  renderTogetherRow();
   document.getElementById('inputBox').placeholder = PLACEHOLDERS[S.mode] || 'Say anything…';
   closeSidebar();
+}
+
+function renderTogetherRow() {
+  const row = document.getElementById('togetherRow');
+  if (!row) return;
+  if (S.mode !== 'together') { row.style.display = 'none'; return; }
+  const others = getProfiles().filter(p => p.id !== getActiveId());
+  if (!others.length) {
+    row.innerHTML = `<span style="font-size:0.74rem;color:var(--text-muted);">Add another profile (▾ profile menu → Add new profile) to explore relationships together.</span>`;
+  } else {
+    row.innerHTML = `<span style="font-size:0.7rem;color:var(--gold-dim);letter-spacing:0.06em;text-transform:uppercase;">With:</span>` +
+      others.map(p => `<div class="starter${S.together.has(p.id) ? ' tg-on' : ''}" onclick="toggleTogether('${p.id}')">${p.emoji || '✦'} ${esc(p.name)}</div>`).join('');
+  }
+  row.style.display = 'flex';
+}
+
+function toggleTogether(id) {
+  S.together.has(id) ? S.together.delete(id) : S.together.add(id);
+  renderTogetherRow();
 }
 
 function toggleSidebar() { document.querySelector('.sidebar').classList.toggle('open'); }
