@@ -581,6 +581,13 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 .portrait-p { font-size: 0.875rem; line-height: 1.78; color: var(--text); margin-bottom: 0.75em; }
 .portrait-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 60px 20px; text-align: center; color: var(--text-muted); }
 .portrait-empty p { font-size: 0.82rem; max-width: 300px; line-height: 1.65; }
+.portrait-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.pt-switch { display: flex; gap: 4px; }
+.pt-tab { padding: 5px 14px; border: 1px solid var(--border); border-radius: 20px; font-size: 0.75rem; cursor: pointer; color: var(--text-muted); transition: all 0.18s; user-select: none; }
+.pt-tab:hover { border-color: var(--gold-dim); color: var(--text); }
+.pt-tab.active { border-color: var(--gold); color: var(--gold); background: rgba(154,112,16,0.07); }
+.pt-actions { display: flex; gap: 6px; }
+.portrait-pre { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-size: 0.72rem; overflow-x: auto; margin: 12px 0; line-height: 1.65; font-family: monospace; color: var(--text); }
 
 /* ─── BUTTONS (shared) ───────────────────────────────────────────────────── */
 .btn-primary-full {
@@ -752,7 +759,10 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 
     <!-- PORTRAIT -->
     <div class="tab-pane" id="pane-portrait">
-      <div class="portrait-wrap" id="portraitContent"></div>
+      <div class="portrait-wrap">
+        <div class="portrait-toolbar" id="portraitToolbar"></div>
+        <div id="portraitContent"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -919,7 +929,8 @@ function buildNatalContext(profile) {
 
   if (profile.humanDesign?.trim()) lines.push(`\nHUMAN DESIGN (provided by user):\n${profile.humanDesign.trim()}`);
   if (profile.geneKeys?.trim())    lines.push(`\nGENE KEYS HOLOGENETIC PROFILE (provided by user):\n${profile.geneKeys.trim()}`);
-  if (profile.notes?.trim()) lines.push(`\nPERSONAL DEEP ANALYSIS (pre-written psychological portrait — treat as intimate background knowledge, not text to quote directly):\n${profile.notes.trim()}`);
+  if (profile.analysis?.trim()) lines.push(`\nTECHNICAL CHART ANALYSIS (reference document):\n${profile.analysis.trim()}`);
+  if (profile.notes?.trim()) lines.push(`\nPERSONAL DEEP PORTRAIT (pre-written psychological portrait — treat as intimate background knowledge, not text to quote directly):\n${profile.notes.trim()}`);
   return lines.join('\n');
 }
 
@@ -942,7 +953,7 @@ function buildSystem(mode, profile) {
   if (mode === 'together' && S.together?.size) {
     const others = getProfiles().filter(p => S.together.has(p.id));
     constellation = others.map(o =>
-      `\n\n─── CONSTELLATION: ${o.name} ───\n` + buildNatalContext({ ...o, notes: '' })
+      `\n\n─── CONSTELLATION: ${o.name} ───\n` + buildNatalContext({ ...o, notes: '', analysis: '' })
     ).join('');
     if (constellation) constellation = '\n\nOTHER PEOPLE IN THIS CONSTELLATION (their private notes are not shared — work from their charts):' + constellation;
   }
@@ -1235,16 +1246,20 @@ function showGeneratingOverlay(profile, key) {
       <div style="display:flex;gap:5px;justify-content:center;margin:20px 0;">
         <div class="dot"></div><div class="dot"></div><div class="dot"></div>
       </div>
-      <p style="font-size:0.75rem;color:var(--text-muted);line-height:1.6;">Blind spots, paradoxes, and invisible patterns — derived from your specific placements.</p>
+      <p style="font-size:0.75rem;color:var(--text-muted);line-height:1.6;">Two documents are being written: The Story (blind spots &amp; paradoxes) and The Analysis (technical reference). Find them in the Portrait tab.</p>
       <div class="wizard-nav" style="justify-content:center;margin-top:20px;">
         <button class="btn-back" onclick="hideWizard()">Skip for now</button>
       </div>
     </div>`;
 
-  generateDeepAnalysis(profile, key)
-    .then(analysis => { if (analysis) updateProfile(profile.id, { notes: analysis }); })
-    .catch(() => {})
-    .finally(() => hideWizard());
+  Promise.all([
+    generateDoc(buildDeepAnalysisPrompt(profile), key)
+      .then(t => { if (t) updateProfile(profile.id, { notes: t }); })
+      .catch(() => {}),
+    generateDoc(buildTechAnalysisPrompt(profile), key)
+      .then(t => { if (t) updateProfile(profile.id, { analysis: t }); })
+      .catch(() => {})
+  ]).finally(() => { hideWizard(); renderPortrait(); });
 }
 
 function buildDeepAnalysisPrompt(profile) {
@@ -1297,7 +1312,70 @@ VOICE:
 — Total length approximately 3500–4500 words.`;
 }
 
-async function generateDeepAnalysis(profile, key) {
+function buildTechAnalysisPrompt(profile) {
+  const parts = [`Name: ${profile.name}`];
+  if (profile.birthDate)  parts.push(`Birth date: ${profile.birthDate}`);
+  if (profile.birthTime)  parts.push(`Birth time: ${profile.birthTime}`);
+  if (profile.birthPlace) parts.push(`Birth place: ${profile.birthPlace}`);
+  if (profile.birthDate) {
+    const nums = [`Life Path ${calcLifePath(profile.birthDate)}`];
+    if (profile.fullName?.trim()) {
+      const exp = calcExpression(profile.fullName), soul = calcSoulUrge(profile.fullName);
+      if (exp)  nums.push(`Expression ${exp}`);
+      if (soul) nums.push(`Soul Urge ${soul}`);
+    }
+    parts.push(`Numerology: ${nums.join(' · ')}`);
+  }
+  if (profile.chartText?.trim())   parts.push(`\nNatal chart placements:\n${profile.chartText.trim()}`);
+  if (profile.humanDesign?.trim()) parts.push(`\nHuman Design:\n${profile.humanDesign.trim()}`);
+  if (profile.geneKeys?.trim())    parts.push(`\nGene Keys hologenetic profile:\n${profile.geneKeys.trim()}`);
+
+  return `Write a precise, technical reference analysis for ${profile.name} — the analytical companion to a poetic portrait. This is the document they open when they want the mechanics, not the mythology.
+
+THE PERSON:
+${parts.join('\n')}
+
+STRUCTURE (markdown — use # / ## / ### headings, plain paragraphs and simple "Label — value" lines; NO markdown tables):
+
+# Chart Analysis: ${profile.name}
+
+## Identity at a Glance
+Rising, Sun, Moon, Midheaven — each on one line with sign, degree, house, and a one-clause meaning. Then a short paragraph naming the core structural tension of this chart.
+
+## The Defining Configuration
+The single most important structural feature (a stellium, a dominant house, an angular pattern). What it means practically.
+
+## Placements
+Each planet in turn: sign, house, and 2–4 sentences of precise interpretation. Technical register — behavioral, observable, useful.
+
+## Human Design Mechanics
+Type and strategy, authority (how to actually use it in decisions), profile, defined/open centers (what each open center absorbs), channels. Write it as an operating manual.
+
+## Gene Keys Map
+For each sphere given (Activation, Venus, Pearl sequences): the gate.line with its classic Shadow → Gift → Siddhi arc in one line each, and one sentence on what this sphere governs.
+
+## Numerology
+Life Path (and Expression / Soul Urge if given) — meaning in 2–3 sentences each.
+
+## Elemental & Modal Balance
+Count fire/earth/air/water and cardinal/fixed/mutable from the placements; state the practical implication of the dominant and missing qualities.
+
+## Career & Public Life
+Grounded in MC, 10th house, North Node, and HD type. Concrete fields and working styles.
+
+## Relationships
+Grounded in 7th house, Venus, Mars, and the Venus Sequence. Attachment style, needs, friction points.
+
+## Themes to Come Back To
+5 numbered questions this chart keeps asking across a lifetime.
+
+## Quick Reference
+A code block (\`\`\`) with one aligned line per placement: planet, sign+degree, house, keyword. Include HD type/authority/profile and the GK sequence gates as final lines.
+
+VOICE: second person, analytical, compact, zero mysticism-for-its-own-sake. Every claim traceable to a specific data point above. If data is missing, say so and move on. Approximately 2000–2800 words.`;
+}
+
+async function generateDoc(prompt, key) {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -1310,7 +1388,7 @@ async function generateDeepAnalysis(profile, key) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 8000,
-        messages: [{ role: 'user', content: buildDeepAnalysisPrompt(profile) }]
+        messages: [{ role: 'user', content: prompt }]
       })
     });
     if (!res.ok) return null;
@@ -1827,7 +1905,9 @@ let S = {
   messages: [],
   sessionId: String(Date.now()),
   jType: 'milestone',
-  together: new Set()
+  together: new Set(),
+  portraitView: 'story',
+  generating: {}
 };
 
 // ─── MODE ─────────────────────────────────────────────────────────────────────
@@ -2103,21 +2183,80 @@ function renderJournal() {
   }).join('');
 }
 
-// ─── PORTRAIT ────────────────────────────────────────────────────────────────
+// ─── PORTRAIT (two documents: The Story · The Analysis) ─────────────────────
 function renderPortrait() {
+  const toolbar = document.getElementById('portraitToolbar');
   const container = document.getElementById('portraitContent');
-  if (!container) return;
+  if (!toolbar || !container) return;
   const profile = getActiveProfile();
-  if (!profile?.notes?.trim()) {
+  const kind = S.portraitView || 'story';
+  const text = kind === 'story' ? profile?.notes : profile?.analysis;
+  const busy = S.generating?.[kind];
+
+  toolbar.innerHTML = `
+    <div class="pt-switch">
+      <div class="pt-tab ${kind==='story'?'active':''}" onclick="S.portraitView='story';renderPortrait()">☾ The Story</div>
+      <div class="pt-tab ${kind==='analysis'?'active':''}" onclick="S.portraitView='analysis';renderPortrait()">◎ The Analysis</div>
+    </div>
+    <div class="pt-actions">
+      <button class="btn-sm" ${busy?'disabled':''} onclick="regenerateDoc('${kind}')">${busy ? '✦ Writing…' : '↻ Regenerate'}</button>
+      <button class="btn-sm" ${text?.trim() ? '' : 'disabled'} onclick="downloadDoc('${kind}')">⬇ Download</button>
+    </div>`;
+
+  if (busy) {
     container.innerHTML = `
       <div class="portrait-empty">
-        <div style="font-size:2rem;opacity:0.3;color:var(--gold);">◎</div>
-        <p>No portrait yet.</p>
-        <p>Complete the setup with chart data to auto-generate one, or paste your own analysis via <span style="color:var(--gold-dim);cursor:pointer;text-decoration:underline;" onclick="editProfile()">Edit profile</span>.</p>
+        <div style="display:flex;gap:5px;"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+        <p>${kind === 'story' ? 'Writing your story — blind spots, paradoxes, the deep weave…' : 'Writing your technical analysis — placements, mechanics, reference…'}</p>
+        <p>Usually one to two minutes. You can keep using the Compass.</p>
       </div>`;
     return;
   }
-  container.innerHTML = fmtPortrait(profile.notes);
+  if (!text?.trim()) {
+    container.innerHTML = `
+      <div class="portrait-empty">
+        <div style="font-size:2rem;opacity:0.3;color:var(--gold);">${kind === 'story' ? '☾' : '◎'}</div>
+        <p>${kind === 'story'
+          ? 'The Story — a poetic deep portrait: what you don’t know you don’t know, and the paradoxes to embody.'
+          : 'The Analysis — the technical companion: placements, Human Design mechanics, Gene Keys map, reference tables.'}</p>
+        <button class="btn-sm" style="color:var(--gold);border-color:var(--border-active);" onclick="regenerateDoc('${kind}')">✦ Generate now</button>
+      </div>`;
+    return;
+  }
+  container.innerHTML = fmtPortrait(text);
+}
+
+async function regenerateDoc(kind) {
+  const profile = getActiveProfile();
+  if (!profile) return;
+  const key = getKey(profile.id);
+  if (!key) { alert('No API key available — add one via Edit profile.'); return; }
+  const existing = kind === 'story' ? profile.notes : profile.analysis;
+  if (existing?.trim() && !confirm('Rewrite this document from your current chart data? The existing version will be replaced — download it first if you want to keep it.')) return;
+  S.generating = S.generating || {};
+  S.generating[kind] = true;
+  renderPortrait();
+  try {
+    const prompt = kind === 'story' ? buildDeepAnalysisPrompt(profile) : buildTechAnalysisPrompt(profile);
+    const text = await generateDoc(prompt, key);
+    if (text) updateProfile(profile.id, kind === 'story' ? { notes: text } : { analysis: text });
+    else alert('Generation failed — check your API key and connection, then try again.');
+  } catch {}
+  S.generating[kind] = false;
+  renderPortrait();
+}
+
+function downloadDoc(kind) {
+  const p = getActiveProfile();
+  if (!p) return;
+  const text = kind === 'story' ? p.notes : p.analysis;
+  if (!text?.trim()) return;
+  const blob = new Blob([text], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${(p.name || 'profile').toLowerCase().replace(/\s+/g,'-')}-${kind}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 function fmtPortrait(raw) {
@@ -2127,15 +2266,22 @@ function fmtPortrait(raw) {
       .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
       .replace(/\*(.+?)\*/g,'<em>$1</em>');
   }
-  return raw.split('\n').map(line => {
+  const out = [];
+  let pre = false;
+  for (const line of raw.split('\n')) {
     const t = line.trim();
-    if (!t) return '';
-    if (t === '---') return '<hr class="portrait-hr">';
-    if (t.startsWith('### ')) return `<h3 class="portrait-h3">${inline(t.slice(4))}</h3>`;
-    if (t.startsWith('## '))  return `<h2 class="portrait-h2">${inline(t.slice(3))}</h2>`;
-    if (t.startsWith('# '))   return `<p class="portrait-h1">${inline(t.slice(2))}</p>`;
-    return `<p class="portrait-p">${inline(t)}</p>`;
-  }).join('');
+    if (t.startsWith('```')) { out.push(pre ? '</pre>' : '<pre class="portrait-pre">'); pre = !pre; continue; }
+    if (pre) { out.push(esc(line) + '\n'); continue; }
+    if (!t) continue;
+    if (t === '---') { out.push('<hr class="portrait-hr">'); continue; }
+    if (t.startsWith('### ')) { out.push(`<h3 class="portrait-h3">${inline(t.slice(4))}</h3>`); continue; }
+    if (t.startsWith('## '))  { out.push(`<h2 class="portrait-h2">${inline(t.slice(3))}</h2>`); continue; }
+    if (t.startsWith('# '))   { out.push(`<p class="portrait-h1">${inline(t.slice(2))}</p>`); continue; }
+    if (t.startsWith('- ') || t.startsWith('• ')) { out.push(`<p class="portrait-p" style="padding-left:1em;">• ${inline(t.slice(2))}</p>`); continue; }
+    out.push(`<p class="portrait-p">${inline(t)}</p>`);
+  }
+  if (pre) out.push('</pre>');
+  return out.join('');
 }
 
 // ─── TABS ─────────────────────────────────────────────────────────────────────
