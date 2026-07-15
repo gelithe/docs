@@ -421,6 +421,21 @@ header {
 
 .btn-icon:hover { border-color: var(--gold-dim); color: var(--text); }
 
+.lang-select {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-family: 'Lato', sans-serif;
+  padding: 6px 6px;
+  cursor: pointer;
+  max-width: 92px;
+  transition: all 0.18s;
+}
+.lang-select:hover { border-color: var(--gold-dim); color: var(--text); }
+.lang-select option { background: var(--card); color: var(--text); }
+
 .btn-sm {
   padding: 6px 13px;
   background: transparent;
@@ -663,23 +678,24 @@ textarea.input-box::placeholder { color: var(--text-muted); }
         <span id="profileName">—</span>
         <span style="font-size:0.6rem;opacity:0.5;">▾</span>
       </div>
+      <select class="lang-select" id="langSelect" onchange="setLang(this.value)" title="Language"></select>
       <button class="btn-icon" id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark">☾</button>
-      <button class="btn-sm" onclick="newSession()">+ New</button>
+      <button class="btn-sm" id="newBtn" onclick="newSession()">+ New</button>
     </div>
   </header>
 
   <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sb-section">
-      <div class="sb-label">Mode</div>
+      <div class="sb-label" id="sbModeLabel">Mode</div>
       <div class="mode-grid">
-        <button class="mode-btn active" data-mode="reflect"   onclick="setMode(this)"><span class="mode-icon">◯</span>Reflect</button>
-        <button class="mode-btn"        data-mode="question"  onclick="setMode(this)"><span class="mode-icon">?</span>Question</button>
-        <button class="mode-btn"        data-mode="doubt"     onclick="setMode(this)"><span class="mode-icon">~</span>Doubt</button>
-        <button class="mode-btn"        data-mode="celebrate" onclick="setMode(this)"><span class="mode-icon">✦</span>Celebrate</button>
-        <button class="mode-btn"        data-mode="transit"   onclick="setMode(this)"><span class="mode-icon">☽</span>Transits</button>
-        <button class="mode-btn"        data-mode="milestone" onclick="setMode(this)"><span class="mode-icon">△</span>Milestone</button>
-        <button class="mode-btn"        data-mode="together"  onclick="setMode(this)"><span class="mode-icon">✶</span>Together</button>
+        <button class="mode-btn active" data-mode="reflect"   onclick="setMode(this)"><span class="mode-icon">◯</span><span class="mode-label">Reflect</span></button>
+        <button class="mode-btn"        data-mode="question"  onclick="setMode(this)"><span class="mode-icon">?</span><span class="mode-label">Question</span></button>
+        <button class="mode-btn"        data-mode="doubt"     onclick="setMode(this)"><span class="mode-icon">~</span><span class="mode-label">Doubt</span></button>
+        <button class="mode-btn"        data-mode="celebrate" onclick="setMode(this)"><span class="mode-icon">✦</span><span class="mode-label">Celebrate</span></button>
+        <button class="mode-btn"        data-mode="transit"   onclick="setMode(this)"><span class="mode-icon">☽</span><span class="mode-label">Transits</span></button>
+        <button class="mode-btn"        data-mode="milestone" onclick="setMode(this)"><span class="mode-icon">△</span><span class="mode-label">Milestone</span></button>
+        <button class="mode-btn"        data-mode="together"  onclick="setMode(this)"><span class="mode-icon">✶</span><span class="mode-label">Together</span></button>
       </div>
     </div>
 
@@ -693,18 +709,18 @@ textarea.input-box::placeholder { color: var(--text-muted); }
     </div>
 
     <div class="sb-settings">
-      <div class="sb-row"><span>Edit chart</span>  <button onclick="editProfile()">Edit</button></div>
-      <div class="sb-row"><span>Sessions</span>    <button onclick="clearSessions()">Clear</button></div>
+      <div class="sb-row"><span id="sbEditChartLbl">Edit chart</span>  <button onclick="editProfile()" id="sbEditBtn">Edit</button></div>
+      <div class="sb-row"><span id="sbSessionsLbl">Sessions</span>    <button onclick="clearSessions()" id="sbClearBtn">Clear</button></div>
     </div>
   </div>
 
   <!-- MAIN -->
   <div class="main">
     <div class="tabs">
-      <div class="tab active" onclick="switchTab('compass',  this)">Compass</div>
-      <div class="tab"        onclick="switchTab('journal',  this)">Journal</div>
-      <div class="tab"        onclick="switchTab('book',     this)">The Book</div>
-      <div class="tab"        onclick="switchTab('portrait', this)">Portrait</div>
+      <div class="tab active" data-tab="compass"  onclick="switchTab('compass',  this)">Compass</div>
+      <div class="tab"        data-tab="journal"  onclick="switchTab('journal',  this)">Journal</div>
+      <div class="tab"        data-tab="book"     onclick="switchTab('book',     this)">The Book</div>
+      <div class="tab"        data-tab="portrait" onclick="switchTab('portrait', this)">Portrait</div>
     </div>
 
     <!-- COMPASS -->
@@ -808,6 +824,33 @@ async function ccDecryptKey(blob, pass) {
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 const EMOJIS = ['✦','✧','★','☽','☀','♦','◆','✿','❀','⊕','◎','✴','❋','⊛','✵','✶','⊙','◇','✺','⊗','🌙','🌟','🪐','🌊','🌿','🦋','🔮','🌸','🪷','🌺'];
+
+// ─── LANGUAGES / i18n ─────────────────────────────────────────────────────────
+// `en` field = English name of the language (used to instruct the AI which
+// language to converse in). `native` = label shown in the picker.
+const LANGS = {
+  en: { native: 'English',    en: 'English' },
+  lt: { native: 'Lietuvių',   en: 'Lithuanian' },
+  it: { native: 'Italiano',   en: 'Italian' },
+  es: { native: 'Español',    en: 'Spanish' },
+  fr: { native: 'Français',   en: 'French' },
+  de: { native: 'Deutsch',    en: 'German' },
+  pt: { native: 'Português',  en: 'Portuguese' },
+  ru: { native: 'Русский',    en: 'Russian' }
+};
+
+const I18N = {
+  en: { sub:'Personal Astrological Guide', new:'+ New', modeLbl:'Mode', yourChart:'Your Chart', editChart:'Edit chart', edit:'Edit', sessions:'Sessions', clear:'Clear', reflect:'Reflect', question:'Question', doubt:'Doubt', celebrate:'Celebrate', transit:'Transits', milestone:'Milestone', together:'Together', compass:'Compass', journal:'Journal', book:'The Book', portrait:'Portrait', welcomeH:'What brings you here today', welcomeP:'Choose a mode, pick a prompt, or just start typing.', say:'Say anything…' },
+  lt: { sub:'Asmeninis astrologijos vadovas', new:'+ Nauja', modeLbl:'Režimas', yourChart:'Jūsų kortelė', editChart:'Redaguoti', edit:'Keisti', sessions:'Sesijos', clear:'Išvalyti', reflect:'Apmąstyti', question:'Klausimas', doubt:'Abejonė', celebrate:'Švęsti', transit:'Tranzitai', milestone:'Etapas', together:'Kartu', compass:'Kompasas', journal:'Dienoraštis', book:'Knyga', portrait:'Portretas', welcomeH:'Kas tave čia atvedė šiandien', welcomeP:'Pasirinkite režimą, pasiūlymą arba tiesiog pradėkite rašyti.', say:'Sakykite bet ką…' },
+  it: { sub:'Guida astrologica personale', new:'+ Nuovo', modeLbl:'Modalità', yourChart:'Il tuo tema', editChart:'Modifica', edit:'Modifica', sessions:'Sessioni', clear:'Cancella', reflect:'Riflettere', question:'Domanda', doubt:'Dubbio', celebrate:'Celebrare', transit:'Transiti', milestone:'Traguardo', together:'Insieme', compass:'Bussola', journal:'Diario', book:'Il Libro', portrait:'Ritratto', welcomeH:'Cosa ti porta qui oggi', welcomeP:'Scegli una modalità, un suggerimento o inizia a scrivere.', say:'Dì qualsiasi cosa…' },
+  es: { sub:'Guía astrológica personal', new:'+ Nuevo', modeLbl:'Modo', yourChart:'Tu carta', editChart:'Editar', edit:'Editar', sessions:'Sesiones', clear:'Borrar', reflect:'Reflexionar', question:'Pregunta', doubt:'Duda', celebrate:'Celebrar', transit:'Tránsitos', milestone:'Hito', together:'Juntos', compass:'Brújula', journal:'Diario', book:'El Libro', portrait:'Retrato', welcomeH:'¿Qué te trae por aquí hoy', welcomeP:'Elige un modo, una sugerencia o empieza a escribir.', say:'Di lo que quieras…' },
+  fr: { sub:'Guide astrologique personnel', new:'+ Nouveau', modeLbl:'Mode', yourChart:'Votre thème', editChart:'Modifier', edit:'Modifier', sessions:'Sessions', clear:'Effacer', reflect:'Réfléchir', question:'Question', doubt:'Doute', celebrate:'Célébrer', transit:'Transits', milestone:'Étape', together:'Ensemble', compass:'Boussole', journal:'Journal', book:'Le Livre', portrait:'Portrait', welcomeH:"Qu'est-ce qui t'amène ici aujourd'hui", welcomeP:'Choisis un mode, une suggestion, ou commence à écrire.', say:'Dis ce que tu veux…' },
+  de: { sub:'Persönlicher astrologischer Begleiter', new:'+ Neu', modeLbl:'Modus', yourChart:'Dein Chart', editChart:'Bearbeiten', edit:'Ändern', sessions:'Sitzungen', clear:'Löschen', reflect:'Nachdenken', question:'Frage', doubt:'Zweifel', celebrate:'Feiern', transit:'Transite', milestone:'Meilenstein', together:'Zusammen', compass:'Kompass', journal:'Tagebuch', book:'Das Buch', portrait:'Porträt', welcomeH:'Was führt dich heute hierher', welcomeP:'Wähle einen Modus, einen Vorschlag oder fang einfach an zu schreiben.', say:'Sag irgendetwas…' },
+  pt: { sub:'Guia astrológico pessoal', new:'+ Novo', modeLbl:'Modo', yourChart:'O seu mapa', editChart:'Editar', edit:'Editar', sessions:'Sessões', clear:'Limpar', reflect:'Refletir', question:'Pergunta', doubt:'Dúvida', celebrate:'Celebrar', transit:'Trânsitos', milestone:'Marco', together:'Juntos', compass:'Bússola', journal:'Diário', book:'O Livro', portrait:'Retrato', welcomeH:'O que te traz aqui hoje', welcomeP:'Escolha um modo, uma sugestão ou comece a escrever.', say:'Diga qualquer coisa…' },
+  ru: { sub:'Личный астрологический гид', new:'+ Новый', modeLbl:'Режим', yourChart:'Ваша карта', editChart:'Изменить', edit:'Правка', sessions:'Сессии', clear:'Очистить', reflect:'Размышлять', question:'Вопрос', doubt:'Сомнение', celebrate:'Праздновать', transit:'Транзиты', milestone:'Веха', together:'Вместе', compass:'Компас', journal:'Дневник', book:'Книга', portrait:'Портрет', welcomeH:'Что привело вас сюда сегодня', welcomeP:'Выберите режим, подсказку или просто начните писать.', say:'Напишите что угодно…' }
+};
+
+function t(key) { return (I18N[S.lang] && I18N[S.lang][key]) || I18N.en[key] || key; }
 
 const STARTERS = {
   reflect:    ['What has been pulling at me lately', 'I keep coming back to', 'Something feels stuck around', 'I have been noticing a pattern'],
@@ -958,11 +1001,20 @@ function buildSystem(mode, profile) {
     if (constellation) constellation = '\n\nOTHER PEOPLE IN THIS CONSTELLATION (their private notes are not shared — work from their charts):' + constellation;
   }
 
+  // Live ephemeris — always available for grounding, full aspect list in transit mode
+  const transits = buildTransitContext(profile, mode === 'transit');
+
+  const langName = LANGS[S.lang] ? LANGS[S.lang].en : 'English';
+  const langLine = (S.lang && S.lang !== 'en')
+    ? `\n\nIMPORTANT: Respond entirely in ${langName}. Every reply must be written in that language, naturally and fluently — matching the user even if they mix in another language.`
+    : '';
+
   return `You are the personal astrological companion for ${name}. You hold intimate, precise knowledge of their natal chart — not as abstract symbols but as a living map of their psyche, potential, and path.
 
 Today: ${today}
 
 ${ctx}${constellation}
+${transits}
 
 YOUR APPROACH:
 — Be specific to this person's chart and what you know of their placements. Never give generic horoscope statements.
@@ -972,9 +1024,9 @@ YOUR APPROACH:
 — Reference the conversation history you are given. ${name} should feel truly remembered.
 — Responses: usually 2–4 paragraphs. Tight and meaningful. Do not over-explain.
 — One question per response maximum. Make it count.
-— Be honest about approximations. Never invent transit data.
+— A LIVE EPHEMERIS of the current sky is provided above — real computed positions and aspects to the natal chart. Use it for anything about "now," timing, or current energy. Never invent transit data beyond what is given; if something isn't listed, say so.
 — Match their energy. If they are light, be light. If they are in it, go deep.
-— You are their most knowing mirror — the one who reads the map and asks the questions that matter.
+— You are their most knowing mirror — the one who reads the map and asks the questions that matter.${langLine}
 
 CURRENT MODE: ${modes[mode] || modes.reflect}`;
 }
@@ -1532,6 +1584,72 @@ function computeChart(dateUTC, lat, lon, withHouses) {
   return { planets, angles };
 }
 
+// ─── LIVE TRANSITS (current sky + aspects to natal) ─────────────────────────
+const ASPECTS = [
+  { name: 'conjunction', angle: 0,   orb: 3 },
+  { name: 'sextile',     angle: 60,  orb: 2 },
+  { name: 'square',      angle: 90,  orb: 3 },
+  { name: 'trine',       angle: 120, orb: 3 },
+  { name: 'opposition',  angle: 180, orb: 3 }
+];
+const SLOW_BODIES = new Set(['Jupiter','Saturn','Uranus','Neptune','Pluto','N.Node']);
+
+function isRetro(body, date) {
+  if (body === 'Sun' || body === 'Moon' || body === 'N.Node') return body === 'N.Node';
+  const a = eclLonOf(body, date);
+  const b = eclLonOf(body, new Date(date.getTime() + 86400000));
+  return (((b - a + 540) % 360) - 180) < 0;
+}
+
+function computeTransits(nowUTC) {
+  const list = AE_PLANETS.map(p => ({ name: p, lon: eclLonOf(p, nowUTC), retro: isRetro(p, nowUTC) }));
+  list.push({ name: 'N.Node', lon: meanNode(nowUTC), retro: true });
+  return list;
+}
+
+function transitAspects(transits, natalPlanets) {
+  const hits = [];
+  for (const t of transits) {
+    if (t.name === 'Moon') continue; // too fast to be meaningful as a standing transit
+    for (const n of natalPlanets) {
+      const sep = Math.abs(((t.lon - n.lon + 540) % 360) - 180);
+      for (const asp of ASPECTS) {
+        const orb = Math.abs(sep - asp.angle);
+        if (orb <= asp.orb) hits.push({ t: t.name, n: n.name, asp: asp.name, orb: +orb.toFixed(1), retro: t.retro, slow: SLOW_BODIES.has(t.name) });
+      }
+    }
+  }
+  hits.sort((a, b) => (b.slow - a.slow) || (a.orb - b.orb));
+  return hits;
+}
+
+function buildTransitContext(profile, full) {
+  if (typeof Astronomy === 'undefined') return '';
+  try {
+    const now = new Date();
+    const transits = computeTransits(now);
+    const stamp = now.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
+    let out = `\nCURRENT TRANSITING SKY — live ephemeris, ${stamp} (${Intl.DateTimeFormat().resolvedOptions().timeZone}):\n` +
+      transits.map(t => `${t.name.padEnd(8)} ${fmtLon(t.lon)}${t.retro ? ' ℞ retrograde' : ''}`).join('\n');
+
+    if (profile.birthDate) {
+      const utc = localToUTC(profile.birthDate, profile.birthTime, profile.tz, profile.lon);
+      const natal = computeChart(utc, profile.lat, profile.lon, !!profile.birthTime && profile.lat != null);
+      const hits = transitAspects(transits, natal.planets).filter(h => h.slow || h.orb <= 1).slice(0, full ? 18 : 9);
+      if (hits.length) {
+        out += `\n\nACTIVE TRANSITS TO NATAL CHART (transiting → natal; slowest & tightest first):\n` +
+          hits.map(h => `Transiting ${h.t}${h.retro ? ' ℞' : ''} ${h.asp} natal ${h.n} (orb ${h.orb}°)`).join('\n');
+      }
+      if (natal.angles?.cusps) {
+        const byHouse = transits.filter(t => SLOW_BODIES.has(t.name))
+          .map(t => `Transiting ${t.name} in natal House ${houseOf(t.lon, natal.angles.cusps)}`);
+        if (byHouse.length) out += `\n\nSLOW TRANSITS BY NATAL HOUSE:\n` + byHouse.join('\n');
+      }
+    }
+    return out;
+  } catch { return ''; }
+}
+
 // Human Design gate wheel: 64 gates × 5.625°, anchored at Gate 41 = 302° (2° Aquarius)
 const GATE_WHEEL = [41,19,13,49,30,55,37,63,22,36,25,17,21,51,42,3,27,24,2,23,8,20,16,35,45,12,15,52,39,53,62,56,31,33,7,4,29,59,40,64,47,6,46,18,48,57,32,50,28,44,1,43,14,34,9,5,26,11,10,58,38,54,61,60];
 
@@ -1754,6 +1872,7 @@ async function autoCalcAll(force) {
 // ─── APP INIT ────────────────────────────────────────────────────────────────
 function init() {
   applyTheme(localStorage.getItem('cc_theme') || 'light');
+  applyLang();
 
   const profiles = getProfiles();
   const activeId = getActiveId();
@@ -1788,11 +1907,11 @@ function loadProfile(id) {
   document.getElementById('profileName').textContent = profile.name;
   document.getElementById('hSub').textContent =
     [profile.birthDate ? new Date(profile.birthDate + 'T12:00').toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}) : null,
-     profile.birthPlace].filter(Boolean).join(' · ') || 'Personal Astrological Guide';
+     profile.birthPlace].filter(Boolean).join(' · ') || t('sub');
 
   // Update welcome message
   const wh = document.getElementById('welcomeH');
-  if (wh) wh.textContent = `What brings you here today, ${profile.name}?`;
+  if (wh) wh.textContent = `${t('welcomeH')}, ${profile.name}?`;
 
   // Update sidebar chart data
   updateSidebarChart(profile);
@@ -1810,8 +1929,8 @@ function loadProfile(id) {
   document.getElementById('convo').innerHTML = `
     <div class="welcome" id="welcome">
       <div class="welcome-orb">✦</div>
-      <h3 id="welcomeH">What brings you here today, ${esc(profile.name)}?</h3>
-      <p>Choose a mode, pick a prompt, or just start typing.</p>
+      <h3 id="welcomeH">${esc(t('welcomeH'))}, ${esc(profile.name)}?</h3>
+      <p>${esc(t('welcomeP'))}</p>
     </div>`;
 
   renderStarters();
@@ -1907,8 +2026,56 @@ let S = {
   jType: 'milestone',
   together: new Set(),
   portraitView: 'story',
-  generating: {}
+  generating: {},
+  lang: localStorage.getItem('cc_lang') || 'en'
 };
+
+// ─── LANGUAGE ─────────────────────────────────────────────────────────────────
+function setLang(code) {
+  S.lang = LANGS[code] ? code : 'en';
+  localStorage.setItem('cc_lang', S.lang);
+  applyLang();
+}
+
+function applyLang() {
+  document.documentElement.lang = S.lang;
+  const sel = document.getElementById('langSelect');
+  if (sel && !sel.options.length) {
+    sel.innerHTML = Object.keys(LANGS).map(c => `<option value="${c}">${LANGS[c].native}</option>`).join('');
+  }
+  if (sel) sel.value = S.lang;
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('newBtn', t('new'));
+  set('sbModeLabel', t('modeLbl'));
+  set('sbEditChartLbl', t('editChart'));
+  set('sbEditBtn', t('edit'));
+  set('sbSessionsLbl', t('sessions'));
+  set('sbClearBtn', t('clear'));
+
+  document.querySelectorAll('.mode-btn .mode-label').forEach(el => {
+    const m = el.parentElement.dataset.mode;
+    el.textContent = t(m);
+  });
+  document.querySelectorAll('.tab').forEach(el => {
+    el.textContent = t(el.dataset.tab);
+  });
+
+  // header sub falls back to translated guide label when no birth data is shown
+  const prof = getActiveProfile();
+  const hs = document.getElementById('hSub');
+  if (hs) hs.textContent = prof
+    ? ([prof.birthDate ? new Date(prof.birthDate + 'T12:00').toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}) : null, prof.birthPlace].filter(Boolean).join(' · ') || t('sub'))
+    : t('sub');
+  renderStarters();
+  renderTogetherRow();
+  renderPortrait();
+  const wp = document.querySelector('#welcome p'); if (wp) wp.textContent = t('welcomeP');
+  const wh = document.getElementById('welcomeH');
+  if (wh) wh.textContent = t('welcomeH') + (prof ? ', ' + prof.name : '') + '?';
+  const ib = document.getElementById('inputBox');
+  if (ib) ib.placeholder = t('say');
+}
 
 // ─── MODE ─────────────────────────────────────────────────────────────────────
 function setMode(btn) {
@@ -1917,7 +2084,7 @@ function setMode(btn) {
   S.mode = btn.dataset.mode;
   renderStarters();
   renderTogetherRow();
-  document.getElementById('inputBox').placeholder = PLACEHOLDERS[S.mode] || 'Say anything…';
+  document.getElementById('inputBox').placeholder = PLACEHOLDERS[S.mode] || t('say');
   closeSidebar();
 }
 
@@ -2081,8 +2248,8 @@ function newSession() {
   document.getElementById('convo').innerHTML = `
     <div class="welcome" id="welcome">
       <div class="welcome-orb">✦</div>
-      <h3 id="welcomeH">What brings you here today${profile ? ', ' + esc(profile.name) : ''}?</h3>
-      <p>Choose a mode, pick a prompt, or just start typing.</p>
+      <h3 id="welcomeH">${esc(t('welcomeH'))}${profile ? ', ' + esc(profile.name) : ''}?</h3>
+      <p>${esc(t('welcomeP'))}</p>
     </div>`;
 }
 
