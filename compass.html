@@ -711,6 +711,12 @@ textarea.input-box::placeholder { color: var(--text-muted); }
     <div class="sb-settings">
       <div class="sb-row"><span id="sbEditChartLbl">Edit chart</span>  <button onclick="editProfile()" id="sbEditBtn">Edit</button></div>
       <div class="sb-row"><span id="sbSessionsLbl">Sessions</span>    <button onclick="clearSessions()" id="sbClearBtn">Clear</button></div>
+      <div class="sb-row"><span id="sbBackupLbl">Backup</span>
+        <span style="display:flex;gap:5px;">
+          <button onclick="exportAll()" id="sbExportBtn">Export</button>
+          <button onclick="importAll()" id="sbImportBtn">Restore</button>
+        </span>
+      </div>
     </div>
   </div>
 
@@ -840,7 +846,7 @@ const LANGS = {
 };
 
 const I18N = {
-  en: { sub:'Personal Astrological Guide', new:'+ New', modeLbl:'Mode', yourChart:'Your Chart', editChart:'Edit chart', edit:'Edit', sessions:'Sessions', clear:'Clear', reflect:'Reflect', question:'Question', doubt:'Doubt', celebrate:'Celebrate', transit:'Transits', milestone:'Milestone', together:'Together', compass:'Compass', journal:'Journal', book:'The Book', portrait:'Portrait', welcomeH:'What brings you here today', welcomeP:'Choose a mode, pick a prompt, or just start typing.', say:'Say anything…' },
+  en: { sub:'Personal Astrological Guide', new:'+ New', modeLbl:'Mode', yourChart:'Your Chart', editChart:'Edit chart', edit:'Edit', sessions:'Sessions', clear:'Clear', backup:'Backup', exp:'Export', imp:'Restore', reflect:'Reflect', question:'Question', doubt:'Doubt', celebrate:'Celebrate', transit:'Transits', milestone:'Milestone', together:'Together', compass:'Compass', journal:'Journal', book:'The Book', portrait:'Portrait', welcomeH:'What brings you here today', welcomeP:'Choose a mode, pick a prompt, or just start typing.', say:'Say anything…' },
   lt: { sub:'Asmeninis astrologijos vadovas', new:'+ Nauja', modeLbl:'Režimas', yourChart:'Jūsų kortelė', editChart:'Redaguoti', edit:'Keisti', sessions:'Sesijos', clear:'Išvalyti', reflect:'Apmąstyti', question:'Klausimas', doubt:'Abejonė', celebrate:'Švęsti', transit:'Tranzitai', milestone:'Etapas', together:'Kartu', compass:'Kompasas', journal:'Dienoraštis', book:'Knyga', portrait:'Portretas', welcomeH:'Kas tave čia atvedė šiandien', welcomeP:'Pasirinkite režimą, pasiūlymą arba tiesiog pradėkite rašyti.', say:'Sakykite bet ką…' },
   it: { sub:'Guida astrologica personale', new:'+ Nuovo', modeLbl:'Modalità', yourChart:'Il tuo tema', editChart:'Modifica', edit:'Modifica', sessions:'Sessioni', clear:'Cancella', reflect:'Riflettere', question:'Domanda', doubt:'Dubbio', celebrate:'Celebrare', transit:'Transiti', milestone:'Traguardo', together:'Insieme', compass:'Bussola', journal:'Diario', book:'Il Libro', portrait:'Ritratto', welcomeH:'Cosa ti porta qui oggi', welcomeP:'Scegli una modalità, un suggerimento o inizia a scrivere.', say:'Dì qualsiasi cosa…' },
   es: { sub:'Guía astrológica personal', new:'+ Nuevo', modeLbl:'Modo', yourChart:'Tu carta', editChart:'Editar', edit:'Editar', sessions:'Sesiones', clear:'Borrar', reflect:'Reflexionar', question:'Pregunta', doubt:'Duda', celebrate:'Celebrar', transit:'Tránsitos', milestone:'Hito', together:'Juntos', compass:'Brújula', journal:'Diario', book:'El Libro', portrait:'Retrato', welcomeH:'¿Qué te trae por aquí hoy', welcomeP:'Elige un modo, una sugerencia o empieza a escribir.', say:'Di lo que quieras…' },
@@ -2051,6 +2057,9 @@ function applyLang() {
   set('sbEditChartLbl', t('editChart'));
   set('sbEditBtn', t('edit'));
   set('sbSessionsLbl', t('sessions'));
+  set('sbBackupLbl', t('backup'));
+  set('sbExportBtn', t('exp'));
+  set('sbImportBtn', t('imp'));
   set('sbClearBtn', t('clear'));
 
   document.querySelectorAll('.mode-btn .mode-label').forEach(el => {
@@ -2260,6 +2269,99 @@ function clearSessions() {
   renderBook();
 }
 
+// ─── BACKUP / RESTORE ─────────────────────────────────────────────────────────
+function ccStamp() {
+  // avoid locale-dependent slashes in filenames
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function ccDownload(filename, text, type) {
+  const blob = new Blob([text], { type: type || 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function exportAll() {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    // include everything except stored API keys (kept out of backups for safety)
+    if (k && k.startsWith('cc_') && !k.endsWith('_key')) data[k] = localStorage.getItem(k);
+  }
+  const payload = { app: 'chart-compass', version: 1, exported: new Date().toISOString(), data };
+  ccDownload(`chart-compass-backup-${ccStamp()}.json`, JSON.stringify(payload, null, 2), 'application/json');
+  const n = getProfiles().length;
+  alert(`Backup saved — ${n} profile${n!==1?'s':''}, with all conversations, journals and portraits.\n\nKeep this file safe: it restores everything on a new device or browser. (Your API key is not included — you re-enter it once after restoring.)`);
+}
+
+function importAll() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.onchange = () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data;
+      try {
+        const parsed = JSON.parse(reader.result);
+        data = parsed.data || parsed;
+        if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('bad');
+        if (!Object.keys(data).some(k => k.startsWith('cc_'))) throw new Error('bad');
+      } catch {
+        alert('That file could not be read as a Chart Compass backup.');
+        return;
+      }
+      const merge = confirm('Restore this backup?\n\nOK — MERGE with what you have now (adds/updates, keeps current data). Recommended.\n\nCancel — REPLACE everything (wipes current profiles, chats and journals first).');
+      if (!merge) {
+        const toRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('cc_') && !k.endsWith('_key')) toRemove.push(k);
+        }
+        toRemove.forEach(k => localStorage.removeItem(k));
+      }
+      Object.entries(data).forEach(([k, v]) => {
+        if (merge && (k.endsWith('_sessions') || k.endsWith('_journal'))) {
+          const byId = new Map();
+          [...JSON.parse(localStorage.getItem(k) || '[]'), ...JSON.parse(v || '[]')]
+            .forEach(item => byId.set(String(item.id), item));
+          localStorage.setItem(k, JSON.stringify([...byId.values()]));
+        } else if (merge && k === 'cc_profiles') {
+          const byId = new Map();
+          [...JSON.parse(localStorage.getItem(k) || '[]'), ...JSON.parse(v || '[]')]
+            .forEach(p => byId.set(p.id, { ...byId.get(p.id), ...p }));
+          localStorage.setItem(k, JSON.stringify([...byId.values()]));
+        } else {
+          localStorage.setItem(k, v);
+        }
+      });
+      alert('Backup restored. The app will reload now.');
+      location.reload();
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function downloadSession(id) {
+  const pid = getActiveId();
+  if (!pid) return;
+  const s = getSessions(pid).find(x => x.id === id);
+  if (!s) return;
+  const p = getActiveProfile();
+  const when = new Date(s.date).toLocaleString();
+  const md = `# ${s.title}\n\n*${when} · ${s.mode}${p ? ' · ' + p.name : ''}*\n\n---\n\n` +
+    s.messages.map(m => `**${m.role === 'user' ? (p?.name || 'You') : 'Compass'}**\n\n${m.content}`).join('\n\n---\n\n') + '\n';
+  const slug = (s.title || 'session').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+  ccDownload(`chat-${slug || 'session'}.md`, md, 'text/markdown');
+}
+
 function renderBook() {
   const id = getActiveId();
   if (!id) return;
@@ -2282,7 +2384,10 @@ function renderBook() {
           <span class="chapter-arrow" id="arr-${i}">▸</span>
         </div>
         <div class="chapter-body" id="ch-${i}">
-          <button class="btn-sm" style="margin:4px 0 12px;color:var(--gold);border-color:var(--border-active);" onclick="resumeSession('${s.id}')">↩ Continue this conversation</button>
+          <div style="display:flex;gap:6px;margin:4px 0 12px;flex-wrap:wrap;">
+            <button class="btn-sm" style="color:var(--gold);border-color:var(--border-active);" onclick="resumeSession('${s.id}')">↩ Continue this conversation</button>
+            <button class="btn-sm" onclick="downloadSession('${s.id}')">⬇ Save as file</button>
+          </div>
           ${msgsHtml}
         </div>
       </div>`;
