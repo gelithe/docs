@@ -2,7 +2,7 @@
   "name": "Chart Compass",
   "short_name": "Compass",
   "description": "Your personal astrological guide — natal chart, Human Design, Gene Keys and a companion that remembers.",
-  "start_url": "./compass.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

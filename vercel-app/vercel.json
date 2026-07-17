@@ -1,9 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": true,
-  "rewrites": [
-    { "source": "/", "destination": "/compass.html" }
-  ],
   "headers": [
     {
       "source": "/sw.js",
@@ -13,7 +9,7 @@
       ]
     },
     {
-      "source": "/compass.html",
+      "source": "/index.html",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache" }
       ]
