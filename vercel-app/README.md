@@ -10,7 +10,7 @@ The GitHub Pages version is untouched and keeps working independently.
 
 ```
 vercel-app/
-  compass.html            the app (routes model calls through /api/chat)
+  index.html              the app (served at /, routes model calls through /api/chat)
   api/chat.js             serverless proxy (Claude by default, OpenAI-ready)
   manifest.webmanifest    PWA manifest
   sw.js                   service worker (installable / offline shell)
