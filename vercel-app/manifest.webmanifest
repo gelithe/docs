@@ -1,0 +1,17 @@
+{
+  "name": "Chart Compass",
+  "short_name": "Compass",
+  "description": "Your personal astrological guide — natal chart, Human Design, Gene Keys and a companion that remembers.",
+  "start_url": "./compass.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07071a",
+  "theme_color": "#0f0f28",
+  "categories": ["lifestyle", "education"],
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

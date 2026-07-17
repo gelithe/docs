@@ -1,0 +1,7 @@
+{
+  "name": "chart-compass",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chart Compass — personal astrological guide, with a serverless model proxy.",
+  "engines": { "node": ">=18" }
+}
