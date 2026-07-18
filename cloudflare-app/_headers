@@ -1,0 +1,8 @@
+# Always fetch a fresh app shell and service worker on deploy
+/sw.js
+  Cache-Control: no-cache
+  Service-Worker-Allowed: /
+/index.html
+  Cache-Control: no-cache
+/
+  Cache-Control: no-cache
