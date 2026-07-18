@@ -722,6 +722,7 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 
     <div class="sb-settings">
       <div class="sb-row"><span id="sbEditChartLbl">Edit chart</span>  <button onclick="editProfile()" id="sbEditBtn">Edit</button></div>
+      <div class="sb-row"><span id="sbAccessLbl">Access code</span>  <button onclick="updateAccessCode()" id="sbAccessBtn">Update</button></div>
       <div class="sb-row"><span id="sbSessionsLbl">Sessions</span>    <button onclick="clearSessions()" id="sbClearBtn">Clear</button></div>
       <div class="sb-row"><span id="sbBackupLbl">Backup</span>
         <span style="display:flex;gap:5px;">
@@ -858,7 +859,7 @@ const LANGS = {
 };
 
 const I18N = {
-  en: { sub:'Personal Astrological Guide', new:'+ New', modeLbl:'Mode', yourChart:'Your Chart', editChart:'Edit chart', edit:'Edit', sessions:'Sessions', clear:'Clear', backup:'Backup', exp:'Export', imp:'Restore', reflect:'Reflect', question:'Question', doubt:'Doubt', celebrate:'Celebrate', transit:'Transits', milestone:'Milestone', together:'Together', compass:'Compass', journal:'Journal', book:'The Book', portrait:'Portrait', welcomeH:'What brings you here today', welcomeP:'Choose a mode, pick a prompt, or just start typing.', say:'Say anything…' },
+  en: { sub:'Personal Astrological Guide', new:'+ New', modeLbl:'Mode', yourChart:'Your Chart', editChart:'Edit chart', edit:'Edit', sessions:'Sessions', clear:'Clear', backup:'Backup', exp:'Export', imp:'Restore', access:'Access code', update:'Update', reflect:'Reflect', question:'Question', doubt:'Doubt', celebrate:'Celebrate', transit:'Transits', milestone:'Milestone', together:'Together', compass:'Compass', journal:'Journal', book:'The Book', portrait:'Portrait', welcomeH:'What brings you here today', welcomeP:'Choose a mode, pick a prompt, or just start typing.', say:'Say anything…' },
   lt: { sub:'Asmeninis astrologijos vadovas', new:'+ Nauja', modeLbl:'Režimas', yourChart:'Jūsų kortelė', editChart:'Redaguoti', edit:'Keisti', sessions:'Sesijos', clear:'Išvalyti', reflect:'Apmąstyti', question:'Klausimas', doubt:'Abejonė', celebrate:'Švęsti', transit:'Tranzitai', milestone:'Etapas', together:'Kartu', compass:'Kompasas', journal:'Dienoraštis', book:'Knyga', portrait:'Portretas', welcomeH:'Kas tave čia atvedė šiandien', welcomeP:'Pasirinkite režimą, pasiūlymą arba tiesiog pradėkite rašyti.', say:'Sakykite bet ką…' },
   it: { sub:'Guida astrologica personale', new:'+ Nuovo', modeLbl:'Modalità', yourChart:'Il tuo tema', editChart:'Modifica', edit:'Modifica', sessions:'Sessioni', clear:'Cancella', reflect:'Riflettere', question:'Domanda', doubt:'Dubbio', celebrate:'Celebrare', transit:'Transiti', milestone:'Traguardo', together:'Insieme', compass:'Bussola', journal:'Diario', book:'Il Libro', portrait:'Ritratto', welcomeH:'Cosa ti porta qui oggi', welcomeP:'Scegli una modalità, un suggerimento o inizia a scrivere.', say:'Dì qualsiasi cosa…' },
   es: { sub:'Guía astrológica personal', new:'+ Nuevo', modeLbl:'Modo', yourChart:'Tu carta', editChart:'Editar', edit:'Editar', sessions:'Sesiones', clear:'Borrar', reflect:'Reflexionar', question:'Pregunta', doubt:'Duda', celebrate:'Celebrar', transit:'Tránsitos', milestone:'Hito', together:'Juntos', compass:'Brújula', journal:'Diario', book:'El Libro', portrait:'Retrato', welcomeH:'¿Qué te trae por aquí hoy', welcomeP:'Elige un modo, una sugerencia o empieza a escribir.', say:'Di lo que quieras…' },
@@ -938,6 +939,39 @@ function setAccessCode(c)   { if (c) localStorage.setItem('cc_access', c); }
 function getPersonalKey(id) { return localStorage.getItem(ns(id || getActiveId(), 'key')) || ''; }
 // getKey stays truthy when the app is usable (own key OR an access code present)
 function getKey(id)         { return getPersonalKey(id) || getAccessCode() || ''; }
+
+// Validate a code/key against the proxy without spending a model call.
+// Returns 'ok' | 'invalid' | 'unknown' (unknown = couldn't reach server).
+async function validateAccess(code, key) {
+  try {
+    const res = await fetch(PROXY_ENDPOINT, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ validateOnly: true, accessCode: code || undefined, userKey: key || undefined })
+    });
+    if (res.ok) return 'ok';
+    if (res.status === 401) return 'invalid';
+    return 'unknown';
+  } catch { return 'unknown'; }
+}
+
+// Change the access code any time, with validation.
+async function updateAccessCode() {
+  const cur = getAccessCode();
+  const val = prompt('Your access code (unlocks the shared key). Leave blank if you use your own API key.', cur);
+  if (val === null) return;
+  const code = val.trim();
+  if (!code) {
+    if (!getPersonalKey()) { alert('You need an access code or your own API key to reach the model.'); return; }
+    localStorage.removeItem('cc_access');
+    alert('Access code cleared. Using your own API key.');
+    return;
+  }
+  const verdict = await validateAccess(code, '');
+  if (verdict === 'invalid') { alert('That access code was not accepted. Please check it and try again.'); return; }
+  localStorage.setItem('cc_access', code);
+  alert(verdict === 'ok' ? 'Access code updated ✓' : 'Saved — could not verify right now, but it will be used.');
+}
 
 async function llmComplete({ system, messages, max_tokens, model, provider }) {
   const res = await fetch(PROXY_ENDPOINT, {
@@ -1270,8 +1304,25 @@ async function wFinish() {
     alert('Enter your access code (or your own API key) to open Chart Compass.');
     return;
   }
-  if (code) setAccessCode(code);
+
+  // Validate the access code the moment it's entered (unless a personal key is
+  // driving things — those verify on first real call). Blocks only on a definite
+  // rejection, so a transient network hiccup won't trap the user.
   const enteredKeyFinal = enteredKey;
+  const usingOwnKey = !!(enteredKey || existingPersonal);
+  const codeToCheck = code || getAccessCode();
+  if (!usingOwnKey && codeToCheck) {
+    const nextBtn = document.querySelector('.wizard-nav .btn-next');
+    const label = nextBtn ? nextBtn.textContent : '';
+    if (nextBtn) { nextBtn.textContent = 'Checking…'; nextBtn.disabled = true; }
+    const verdict = await validateAccess(codeToCheck, '');
+    if (nextBtn) { nextBtn.textContent = label; nextBtn.disabled = false; }
+    if (verdict === 'invalid') {
+      alert('That access code was not accepted. Please check it and try again.');
+      return;
+    }
+  }
+  if (code) setAccessCode(code);
 
   const payload = {
     name: WZ.data.name, emoji: WZ.data.emoji,
@@ -1320,13 +1371,19 @@ function showGeneratingOverlay(profile, key) {
     </div>`;
 
   Promise.all([
-    generateDoc(buildDeepAnalysisPrompt(profile), key)
-      .then(t => { if (t) updateProfile(profile.id, { notes: t }); })
-      .catch(() => {}),
-    generateDoc(buildTechAnalysisPrompt(profile), key)
-      .then(t => { if (t) updateProfile(profile.id, { analysis: t }); })
-      .catch(() => {})
-  ]).finally(() => { hideWizard(); renderPortrait(); });
+    generateDoc(buildDeepAnalysisPrompt(profile))
+      .then(t => { if (t) { updateProfile(profile.id, { notes: t }); return true; } return false; })
+      .catch(() => false),
+    generateDoc(buildTechAnalysisPrompt(profile))
+      .then(t => { if (t) { updateProfile(profile.id, { analysis: t }); return true; } return false; })
+      .catch(() => false)
+  ]).then(([story, analysis]) => {
+    hideWizard();
+    renderPortrait();
+    if (!story && !analysis) {
+      alert('Your Portrait documents did not finish generating (the model may have been slow or busy). Open the Portrait tab and tap Generate to try again — your chart and the Compass are ready to use now.');
+    }
+  });
 }
 
 function buildDeepAnalysisPrompt(profile) {
@@ -1376,7 +1433,7 @@ VOICE:
 — Second person throughout. Psychologically precise, poetic but never vague. The register of a depth psychologist who also reads charts, bodygraphs, and gene keys fluently.
 — Derive every insight from the actual data above. Never use generic sun-sign talk. If data is missing (no birth time, etc.), work gracefully with what exists.
 — Avoid flattery. The document should feel slightly uncomfortable in the way true things are.
-— Total length approximately 3500–4500 words.`;
+— Total length approximately 2600–3200 words. Be complete and land the ending; do not leave a section unfinished.`;
 }
 
 function buildTechAnalysisPrompt(profile) {
@@ -1443,8 +1500,10 @@ VOICE: second person, analytical, compact, zero mysticism-for-its-own-sake. Ever
 }
 
 async function generateDoc(prompt) {
+  // 4096 keeps a full document within the serverless function's 60s window
+  // (8000 tokens routinely overran it and the request timed out).
   try {
-    return await llmComplete({ messages: [{ role: 'user', content: prompt }], max_tokens: 8000 });
+    return await llmComplete({ messages: [{ role: 'user', content: prompt }], max_tokens: 4096 });
   } catch { return null; }
 }
 
@@ -2050,6 +2109,8 @@ function applyLang() {
   set('sbEditChartLbl', t('editChart'));
   set('sbEditBtn', t('edit'));
   set('sbSessionsLbl', t('sessions'));
+  set('sbAccessLbl', t('access'));
+  set('sbAccessBtn', t('update'));
   set('sbBackupLbl', t('backup'));
   set('sbExportBtn', t('exp'));
   set('sbImportBtn', t('imp'));
@@ -2162,7 +2223,11 @@ async function send() {
     typingEl.remove();
     const e = document.createElement('div');
     e.className = 'err-msg';
-    e.textContent = 'Error: ' + (err.message || 'Could not reach the API. Check your key and connection.');
+    if (/access code/i.test(err.message || '')) {
+      e.textContent = 'Your access code was rejected. Update it in the sidebar → Access code → Update.';
+    } else {
+      e.textContent = 'Error: ' + (err.message || 'Could not reach the API. Check your connection and try again.');
+    }
     document.getElementById('convo').appendChild(e);
   }
 
@@ -2483,9 +2548,9 @@ async function regenerateDoc(kind) {
   renderPortrait();
   try {
     const prompt = kind === 'story' ? buildDeepAnalysisPrompt(profile) : buildTechAnalysisPrompt(profile);
-    const text = await generateDoc(prompt, key);
+    const text = await generateDoc(prompt);
     if (text) updateProfile(profile.id, kind === 'story' ? { notes: text } : { analysis: text });
-    else alert('Generation failed — check your API key and connection, then try again.');
+    else alert('Generation did not complete — the model may have been slow or busy. Please try again in a moment. If it keeps failing, check your access code (sidebar → Access code → Update).');
   } catch {}
   S.generating[kind] = false;
   renderPortrait();
