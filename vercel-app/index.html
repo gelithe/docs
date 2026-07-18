@@ -1119,7 +1119,9 @@ function showWizard(editingId) {
     if (p) WZ.data = { ...p };
   }
 
-  WZ.totalSteps = 4;
+  // The access code unlocks the whole app, not one profile. Once it's set, adding
+  // another person (a new profile) shouldn't ask for it again — skip the Access step.
+  WZ.totalSteps = (!editingId && getAccessCode()) ? 3 : 4;
   WZ.step = 1;
   document.getElementById('wizardOverlay').style.display = 'flex';
   renderWizardStep();
@@ -1309,20 +1311,20 @@ async function wFinish() {
   // driving things — those verify on first real call). Blocks only on a definite
   // rejection, so a transient network hiccup won't trap the user.
   const enteredKeyFinal = enteredKey;
-  const usingOwnKey = !!(enteredKey || existingPersonal);
-  const codeToCheck = code || getAccessCode();
-  if (!usingOwnKey && codeToCheck) {
+  // Only validate a FRESHLY entered access code (a stored one was already checked
+  // when it was first entered — no need to re-check on every new profile).
+  if (code) {
     const nextBtn = document.querySelector('.wizard-nav .btn-next');
     const label = nextBtn ? nextBtn.textContent : '';
     if (nextBtn) { nextBtn.textContent = 'Checking…'; nextBtn.disabled = true; }
-    const verdict = await validateAccess(codeToCheck, '');
+    const verdict = await validateAccess(code, '');
     if (nextBtn) { nextBtn.textContent = label; nextBtn.disabled = false; }
     if (verdict === 'invalid') {
       alert('That access code was not accepted. Please check it and try again.');
       return;
     }
+    setAccessCode(code);
   }
-  if (code) setAccessCode(code);
 
   const payload = {
     name: WZ.data.name, emoji: WZ.data.emoji,
