@@ -50,11 +50,7 @@ export default async function handler(req, res) {
 
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
-  const { provider = 'anthropic', model, max_tokens, system, messages, accessCode, userKey } = body || {};
-
-  if (!Array.isArray(messages) || messages.length === 0) {
-    return res.status(400).json({ error: 'messages array required' });
-  }
+  const { provider = 'anthropic', model, max_tokens, system, messages, accessCode, userKey, validateOnly } = body || {};
 
   // Decide which key to use. BYOK (the caller's own key) always wins.
   // Otherwise the access code must match one configured on the server.
@@ -70,6 +66,18 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid or missing access code.' });
     }
     key = useProvider === 'openai' ? process.env.OPENAI_API_KEY : process.env.ANTHROPIC_API_KEY;
+  }
+
+  // Cheap auth check used by the app to validate a code the moment it's entered.
+  // (Note: a bring-your-own key is accepted here without a provider round-trip;
+  //  it is verified on first real use.)
+  if (validateOnly) {
+    if (!byok && !key) return res.status(500).json({ error: 'Server is missing the API key.' });
+    return res.status(200).json({ ok: true });
+  }
+
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: 'messages array required' });
   }
   if (!key) return res.status(500).json({ error: `Server is missing the ${useProvider} key.` });
 
