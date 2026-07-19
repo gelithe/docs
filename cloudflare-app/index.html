@@ -493,7 +493,7 @@ header {
 .sb-row button:hover { border-color: var(--gold-dim); color: var(--text); }
 
 /* ─── MAIN ────────────────────────────────────────────────────────────────── */
-.main { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+.main { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; }
 .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
 .tab { padding: 11px 20px; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.18s; letter-spacing: 0.03em; user-select: none; }
 .tab:hover { color: var(--text); }
@@ -543,7 +543,7 @@ header {
 /* ─── INPUT ──────────────────────────────────────────────────────────────── */
 .input-area { padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
 .input-row { display: flex; gap: 8px; align-items: flex-end; }
-textarea.input-box { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; color: var(--text); font-size: 0.875rem; font-family: 'Lato', sans-serif; resize: none; min-height: 44px; max-height: 130px; line-height: 1.5; transition: border-color 0.18s; box-shadow: var(--shadow); }
+textarea.input-box { flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; color: var(--text); font-size: 0.875rem; font-family: 'Lato', sans-serif; resize: none; min-height: 44px; max-height: 130px; line-height: 1.5; transition: border-color 0.18s; box-shadow: var(--shadow); }
 textarea.input-box:focus { outline: none; border-color: var(--gold-dim); }
 textarea.input-box::placeholder { color: var(--text-muted); }
 .send-btn { width: 44px; height: 44px; background: var(--gold); border: none; border-radius: 11px; color: #fff; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.18s; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
@@ -643,7 +643,9 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 .menu-btn { display: none; }
 
 @media (max-width: 680px) {
-  .app { grid-template-columns: 1fr; }
+  /* minmax(0,1fr) lets the column shrink to the screen instead of the header's
+     content forcing the whole app wider than the viewport */
+  .app { grid-template-columns: minmax(0, 1fr); }
   .menu-btn { display: flex; }
   .sidebar {
     position: fixed;
@@ -655,8 +657,23 @@ textarea.input-box::placeholder { color: var(--text-muted); }
     box-shadow: 4px 0 28px rgba(0,0,0,0.25);
   }
   .sidebar.open { transform: translateX(0); }
+
+  /* Condense the header so all controls fit a phone width */
+  header { padding-left: 10px; padding-right: 10px; }
+  .h-left { gap: 8px; min-width: 0; }
+  .h-right { gap: 6px; min-width: 0; }
   .h-sub { display: none; }
+  .h-title { display: none; }          /* the orb stays as the logo */
   .date-chip { display: none; }
+  .lang-select { display: none; }      /* language moves to the sidebar drawer */
+  #profileName { max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-pill { flex-shrink: 1; min-width: 0; }
+  .btn-sm { padding: 6px 10px; white-space: nowrap; }
+
+  /* Tabs scroll horizontally if they don't all fit */
+  .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab { white-space: nowrap; flex-shrink: 0; }
+
   .msg { max-width: 92%; }
   .convo { padding: 16px 14px; }
   .starters { padding: 0 14px 10px; }
@@ -665,7 +682,10 @@ textarea.input-box::placeholder { color: var(--text-muted); }
   .wizard-panel { padding: 28px 20px; max-height: 86vh; }
   .wizard-panel h2 { font-size: 1.12rem; }
   .emoji-grid { grid-template-columns: repeat(6, 1fr); }
+  /* Language selector shown inside the sidebar on mobile */
+  .sb-lang-row { display: flex !important; }
 }
+.sb-lang-row { display: none; }
 </style>
 </head>
 <body>
@@ -728,6 +748,9 @@ textarea.input-box::placeholder { color: var(--text-muted); }
     </div>
 
     <div class="sb-settings">
+      <div class="sb-row sb-lang-row"><span id="sbLangLbl">Language</span>
+        <select class="lang-select" id="langSelectSidebar" onchange="setLang(this.value)" title="Language" style="max-width:120px;"></select>
+      </div>
       <div class="sb-row"><span id="sbEditChartLbl">Edit chart</span>  <button onclick="editProfile()" id="sbEditBtn">Edit</button></div>
       <div class="sb-row"><span id="sbAccessLbl">Access code</span>  <button onclick="updateAccessCode()" id="sbAccessBtn">Update</button></div>
       <div class="sb-row"><span id="sbSessionsLbl">Sessions</span>    <button onclick="clearSessions()" id="sbClearBtn">Clear</button></div>
@@ -866,7 +889,7 @@ const LANGS = {
 };
 
 const I18N = {
-  en: { sub:'Personal Astrological Guide', new:'+ New', modeLbl:'Mode', yourChart:'Your Chart', editChart:'Edit chart', edit:'Edit', sessions:'Sessions', clear:'Clear', backup:'Backup', exp:'Export', imp:'Restore', access:'Access code', update:'Update', reflect:'Reflect', question:'Question', doubt:'Doubt', celebrate:'Celebrate', transit:'Transits', milestone:'Milestone', together:'Together', compass:'Compass', journal:'Journal', book:'The Book', portrait:'Portrait', welcomeH:'What brings you here today', welcomeP:'Choose a mode, pick a prompt, or just start typing.', say:'Say anything…' },
+  en: { sub:'Personal Astrological Guide', new:'+ New', modeLbl:'Mode', yourChart:'Your Chart', editChart:'Edit chart', edit:'Edit', sessions:'Sessions', clear:'Clear', backup:'Backup', exp:'Export', imp:'Restore', access:'Access code', update:'Update', language:'Language', reflect:'Reflect', question:'Question', doubt:'Doubt', celebrate:'Celebrate', transit:'Transits', milestone:'Milestone', together:'Together', compass:'Compass', journal:'Journal', book:'The Book', portrait:'Portrait', welcomeH:'What brings you here today', welcomeP:'Choose a mode, pick a prompt, or just start typing.', say:'Say anything…' },
   lt: { sub:'Asmeninis astrologijos vadovas', new:'+ Nauja', modeLbl:'Režimas', yourChart:'Jūsų kortelė', editChart:'Redaguoti', edit:'Keisti', sessions:'Sesijos', clear:'Išvalyti', reflect:'Apmąstyti', question:'Klausimas', doubt:'Abejonė', celebrate:'Švęsti', transit:'Tranzitai', milestone:'Etapas', together:'Kartu', compass:'Kompasas', journal:'Dienoraštis', book:'Knyga', portrait:'Portretas', welcomeH:'Kas tave čia atvedė šiandien', welcomeP:'Pasirinkite režimą, pasiūlymą arba tiesiog pradėkite rašyti.', say:'Sakykite bet ką…' },
   it: { sub:'Guida astrologica personale', new:'+ Nuovo', modeLbl:'Modalità', yourChart:'Il tuo tema', editChart:'Modifica', edit:'Modifica', sessions:'Sessioni', clear:'Cancella', reflect:'Riflettere', question:'Domanda', doubt:'Dubbio', celebrate:'Celebrare', transit:'Transiti', milestone:'Traguardo', together:'Insieme', compass:'Bussola', journal:'Diario', book:'Il Libro', portrait:'Ritratto', welcomeH:'Cosa ti porta qui oggi', welcomeP:'Scegli una modalità, un suggerimento o inizia a scrivere.', say:'Dì qualsiasi cosa…' },
   es: { sub:'Guía astrológica personal', new:'+ Nuevo', modeLbl:'Modo', yourChart:'Tu carta', editChart:'Editar', edit:'Editar', sessions:'Sesiones', clear:'Borrar', reflect:'Reflexionar', question:'Pregunta', doubt:'Duda', celebrate:'Celebrar', transit:'Tránsitos', milestone:'Hito', together:'Juntos', compass:'Brújula', journal:'Diario', book:'El Libro', portrait:'Retrato', welcomeH:'¿Qué te trae por aquí hoy', welcomeP:'Elige un modo, una sugerencia o empieza a escribir.', say:'Di lo que quieras…' },
@@ -2122,13 +2145,16 @@ function setLang(code) {
 
 function applyLang() {
   document.documentElement.lang = S.lang;
-  const sel = document.getElementById('langSelect');
-  if (sel && !sel.options.length) {
-    sel.innerHTML = Object.keys(LANGS).map(c => `<option value="${c}">${LANGS[c].native}</option>`).join('');
-  }
-  if (sel) sel.value = S.lang;
+  const opts = Object.keys(LANGS).map(c => `<option value="${c}">${LANGS[c].native}</option>`).join('');
+  ['langSelect', 'langSelectSidebar'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    if (!sel.options.length) sel.innerHTML = opts;
+    sel.value = S.lang;
+  });
 
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('sbLangLbl', t('language'));
   set('newBtn', t('new'));
   set('sbModeLabel', t('modeLbl'));
   set('sbEditChartLbl', t('editChart'));
