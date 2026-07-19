@@ -387,9 +387,11 @@ body::before {
 /* ─── LAYOUT ─────────────────────────────────────────────────────────────── */
 .app {
   display: grid;
-  grid-template-rows: 58px 1fr;
+  grid-template-rows: calc(58px + env(safe-area-inset-top, 0px)) 1fr;
   grid-template-columns: 272px 1fr;
-  height: 100vh;
+  /* --app-h is set from the visual viewport so the layout shrinks when the
+     mobile keyboard opens; 100dvh is the fallback for the first paint. */
+  height: var(--app-h, 100dvh);
   position: relative;
   z-index: 1;
 }
@@ -401,6 +403,7 @@ header {
   align-items: center;
   justify-content: space-between;
   padding: 0 22px;
+  padding-top: env(safe-area-inset-top, 0px);
   border-bottom: 1px solid var(--border);
   background: rgba(245,240,232,0.92);
   backdrop-filter: blur(14px);
@@ -538,7 +541,7 @@ header {
 .starter.tg-on { border-color: var(--gold); color: var(--gold); background: rgba(154,112,16,0.07); }
 
 /* ─── INPUT ──────────────────────────────────────────────────────────────── */
-.input-area { padding: 12px 20px 14px; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.input-area { padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
 .input-row { display: flex; gap: 8px; align-items: flex-end; }
 textarea.input-box { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; color: var(--text); font-size: 0.875rem; font-family: 'Lato', sans-serif; resize: none; min-height: 44px; max-height: 130px; line-height: 1.5; transition: border-color 0.18s; box-shadow: var(--shadow); }
 textarea.input-box:focus { outline: none; border-color: var(--gold-dim); }
@@ -644,7 +647,7 @@ textarea.input-box::placeholder { color: var(--text-muted); }
   .menu-btn { display: flex; }
   .sidebar {
     position: fixed;
-    top: 58px; left: 0; bottom: 0;
+    top: calc(58px + env(safe-area-inset-top, 0px)); left: 0; bottom: 0;
     width: min(82vw, 300px);
     z-index: 600;
     transform: translateX(-105%);
@@ -657,7 +660,11 @@ textarea.input-box::placeholder { color: var(--text-muted); }
   .msg { max-width: 92%; }
   .convo { padding: 16px 14px; }
   .starters { padding: 0 14px 10px; }
-  .input-area { padding: 10px 12px 12px; }
+  .input-area { padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px)); }
+  /* Wizard fits comfortably on a narrow phone */
+  .wizard-panel { padding: 28px 20px; max-height: 86vh; }
+  .wizard-panel h2 { font-size: 1.12rem; }
+  .emoji-grid { grid-template-columns: repeat(6, 1fr); }
 }
 </style>
 </head>
@@ -2658,6 +2665,22 @@ function toggleTheme() {
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+// ─── MOBILE VIEWPORT ──────────────────────────────────────────────────────────
+// Size the app to the *visual* viewport so the layout shrinks when the on-screen
+// keyboard opens (keeping the text box visible) and respects browser chrome.
+function setAppHeight() {
+  const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  document.documentElement.style.setProperty('--app-h', h + 'px');
+}
+setAppHeight();
+if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 200));
+// When the input is focused, make sure the latest messages stay in view above the keyboard
+document.addEventListener('focusin', (e) => {
+  if (e.target && e.target.id === 'inputBox') setTimeout(scrollBottom, 300);
+});
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 applyTheme(localStorage.getItem('cc_theme') || 'light');
