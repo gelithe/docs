@@ -514,7 +514,9 @@ header {
 .msg { max-width: 82%; animation: fadeUp 0.25s ease; }
 .msg.user { align-self: flex-end; }
 .msg.assistant { align-self: flex-start; }
-.bubble { padding: 12px 16px; border-radius: 16px; font-size: 0.875rem; line-height: 1.72; }
+.bubble { padding: 12px 16px; border-radius: 16px; font-size: 0.875rem; line-height: 1.72; overflow-wrap: anywhere; }
+/* Long unbroken strings (links, gate lists) must wrap, not widen the page */
+.ch-msg, .portrait-p, .portrait-h1, .portrait-h3, .j-text, .chapter-title, .welcome p { overflow-wrap: anywhere; }
 .bubble p { margin-bottom: 0.6em; }
 .bubble p:last-child { margin-bottom: 0; }
 
@@ -644,8 +646,10 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 
 @media (max-width: 680px) {
   /* minmax(0,1fr) lets the column shrink to the screen instead of the header's
-     content forcing the whole app wider than the viewport */
-  .app { grid-template-columns: minmax(0, 1fr); }
+     content forcing the whole app wider than the viewport. Fixed positioning
+     pins the layout so the iOS keyboard can't shove the page around, and
+     overflow clipping stops any stray pixel from widening the canvas. */
+  .app { grid-template-columns: minmax(0, 1fr); position: fixed; top: 0; left: 0; width: 100%; overflow: hidden; }
   .menu-btn { display: flex; }
   .sidebar {
     position: fixed;
@@ -1099,6 +1103,19 @@ function buildNatalContext(profile) {
   return lines.join('\n');
 }
 
+function buildJournalContext(profileId) {
+  try {
+    const entries = getJournal(profileId).slice(0, 10); // newest first
+    if (!entries.length) return '';
+    const lines = entries.map(e => {
+      const d = new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      const txt = (e.content || '').slice(0, 300);
+      return `[${d} · ${e.type}] ${txt}${(e.content || '').length > 300 ? '…' : ''}`;
+    });
+    return `\n\nRECENT JOURNAL ENTRIES (written by them, newest first — private lived context):\n${lines.join('\n')}`;
+  } catch { return ''; }
+}
+
 function buildSystem(mode, profile) {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const ctx = buildNatalContext(profile);
@@ -1126,6 +1143,10 @@ function buildSystem(mode, profile) {
   // Live ephemeris — always available for grounding, full aspect list in transit mode
   const transits = buildTransitContext(profile, mode === 'transit');
 
+  // The active person's own journal — lived context. Deliberately NOT included
+  // for constellation members: journals stay private to their owner.
+  const journal = buildJournalContext(profile.id);
+
   const langName = LANGS[S.lang] ? LANGS[S.lang].en : 'English';
   const langLine = (S.lang && S.lang !== 'en')
     ? `\n\nIMPORTANT: Respond entirely in ${langName}. Every reply must be written in that language, naturally and fluently — matching the user even if they mix in another language.`
@@ -1135,7 +1156,7 @@ function buildSystem(mode, profile) {
 
 Today: ${today}
 
-${ctx}${constellation}
+${ctx}${constellation}${journal}
 ${transits}
 
 YOUR APPROACH:
@@ -1144,6 +1165,7 @@ YOUR APPROACH:
 — Be wise but never preachy. Challenge gently and precisely when a blind spot seems active.
 — Weave astrological insight into practical, embodied reality — not mystical abstraction.
 — Reference the conversation history you are given. ${name} should feel truly remembered.
+— If journal entries are provided above, treat them as lived context from ${name}'s own hand: notice recurring themes, connect a current question to what they wrote when it resonates, and hold intentions they set. Weave gently — never recite the journal back as a list.
 — Responses: usually 2–4 paragraphs. Tight and meaningful. Do not over-explain.
 — One question per response maximum. Make it count.
 — A LIVE EPHEMERIS of the current sky is provided above — real computed positions and aspects to the natal chart. Use it for anything about "now," timing, or current energy. Never invent transit data beyond what is given; if something isn't listed, say so.
@@ -2698,11 +2720,19 @@ function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').
 function setAppHeight() {
   const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
   document.documentElement.style.setProperty('--app-h', h + 'px');
+  // iOS shoves the page upward when the keyboard opens; pin it back so the
+  // fixed layout stays aligned with what's actually visible.
+  if (window.scrollY) window.scrollTo(0, 0);
 }
 setAppHeight();
-if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', setAppHeight);
+  window.visualViewport.addEventListener('scroll', setAppHeight);
+}
 window.addEventListener('resize', setAppHeight);
 window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 200));
+// Late second pass: iOS PWA keyboards sometimes settle after the resize event
+document.addEventListener('focusin', () => { setTimeout(setAppHeight, 350); });
 // When the input is focused, make sure the latest messages stay in view above the keyboard
 document.addEventListener('focusin', (e) => {
   if (e.target && e.target.id === 'inputBox') setTimeout(scrollBottom, 300);
