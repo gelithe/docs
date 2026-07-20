@@ -36,8 +36,21 @@ not a box.
 First three books: ages 7, 5, and 2. Handcrafted end-to-end to find the voice
 before any automation or storefront (Lovable or otherwise) is built.
 
+## Project layout
+
+```
+engine/       chart computation (natal, HD, GK) — `node compute.js <date> <time> <tz> <lat> <lon>`
+books/        finished books: HTML source + print-ready PDF (A5 + 3mm bleed)
+LANGUAGES.md  the language system (4 book languages, parents' page language)
+PRINT.md      printer/POD readiness and instructions
+ILLUSTRATIONS.md  illustration strategy (SVG house style now, artist/AI later)
+```
+
 ## Status
 
-- [ ] Book 1 — age 7 (awaiting birth data)
-- [ ] Book 2 — age 5 (awaiting birth data)
-- [ ] Book 3 — age 2 (awaiting birth data)
+- [x] Book 1 — Lars, 7 (LT/IT/DE · SVG illustrated · parents' page in Italian)
+- [x] Book 2 — Luis, 5 (LT/IT/DE · SVG illustrated · parents' page in Italian)
+- [x] Book 3 — Nova, 2 (LT/IT/DE · SVG illustrated · parents' page in Italian)
+- [ ] Read-aloud test with the real readers
+- [ ] Print test run (see PRINT.md)
+- [ ] Own repository + generator automation + storefront
