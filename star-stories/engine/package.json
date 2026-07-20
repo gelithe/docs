@@ -1,0 +1,7 @@
+{
+  "name": "star-stories-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chart computation for Star Stories (natal chart, Human Design, Gene Keys)",
+  "dependencies": { "astronomy-engine": "^2.1.19" }
+}
