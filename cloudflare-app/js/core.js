@@ -124,6 +124,8 @@ function getSessions(id)    { return JSON.parse(localStorage.getItem(ns(id,'sess
 function saveSessions(id,v) { localStorage.setItem(ns(id,'sessions'), JSON.stringify(v)); }
 function getJournal(id)     { return JSON.parse(localStorage.getItem(ns(id,'journal'))  || '[]'); }
 function saveJournal(id,v)  { localStorage.setItem(ns(id,'journal'),  JSON.stringify(v)); }
+function getMemory(id)      { return JSON.parse(localStorage.getItem(ns(id,'memory'))   || 'null'); }
+function saveMemory(id,v)   { localStorage.setItem(ns(id,'memory'),   JSON.stringify(v)); }
 // This build routes model calls through the same-origin proxy (/api/chat),
 // which holds the API key server-side. Access is gated by a per-person code;
 // a user may still bring their own key (stored locally, sent to the proxy).
@@ -276,6 +278,54 @@ function buildJournalContext(profileId) {
   } catch { return ''; }
 }
 
+// ─── BOOK MEMORY (distilled long-term conversational memory) ──────────────────
+// The Book holds every past session, but they don't fit in a prompt. Instead a
+// compact digest — "what we've explored together" — is generated periodically
+// and rides along like the journal, giving the companion continuity.
+function buildBookContext(profileId) {
+  try {
+    const mem = getMemory(profileId);
+    if (!mem?.digest?.trim()) return '';
+    return `\n\nWHAT YOU'VE EXPLORED TOGETHER (a distilled memory of past conversations — background continuity, not a transcript):\n${mem.digest.trim()}`;
+  } catch { return ''; }
+}
+
+function buildMemoryPrompt(profile, sessions) {
+  const blocks = sessions.slice(0, 40).map(s => {
+    const d = new Date(s.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    const convo = (s.messages || []).map(m => `${m.role === 'user' ? profile.name : 'Compass'}: ${(m.content || '').slice(0, 400)}`).join('\n');
+    return `── ${d} · ${s.mode || 'reflect'} · "${s.title || ''}"\n${convo}`;
+  }).join('\n\n');
+
+  return `Below are past conversations between ${profile.name} and their astrological companion (the "Compass"). Write a compact MEMORY DIGEST the companion can carry into future conversations so ${profile.name} feels continuously known.
+
+Capture: recurring themes and questions, emotional threads over time, insights that landed, intentions or decisions they voiced, and anything sensitive to hold with care. Write about ${profile.name} in the third person. Be a memory, not a transcript — no play-by-play, no quotes. 150–250 words, plain prose.
+
+CONVERSATIONS:
+${blocks}`;
+}
+
+// Regenerate the memory digest in the background when new sessions have accrued.
+// Gated so it runs at most once per new completed session, never concurrently.
+const _memGenerating = new Set();
+async function maybeUpdateMemory(profileId) {
+  try {
+    if (_memGenerating.has(profileId)) return;
+    const profile = getProfiles().find(p => p.id === profileId);
+    if (!profile) return;
+    const sessions = getSessions(profileId).filter(s => (s.messages || []).length >= 2);
+    if (sessions.length < 2) return;                    // too little to remember yet
+    const mem = getMemory(profileId);
+    if (mem && mem.count === sessions.length) return;   // already current
+    if (!getKey(profileId)) return;                     // no way to call the model
+
+    _memGenerating.add(profileId);
+    const digest = await llmComplete({ messages: [{ role: 'user', content: buildMemoryPrompt(profile, sessions) }], max_tokens: 700 });
+    if (digest?.trim()) saveMemory(profileId, { digest: digest.trim(), count: sessions.length, updatedAt: new Date().toISOString() });
+  } catch { /* background best-effort */ }
+  finally { _memGenerating.delete(profileId); }
+}
+
 function buildSystem(mode, profile) {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const ctx = buildNatalContext(profile);
@@ -307,6 +357,9 @@ function buildSystem(mode, profile) {
   // for constellation members: journals stay private to their owner.
   const journal = buildJournalContext(profile.id);
 
+  // Distilled long-term memory of past conversations (private to this profile).
+  const memory = buildBookContext(profile.id);
+
   const langName = LANGS[S.lang] ? LANGS[S.lang].en : 'English';
   const langLine = (S.lang && S.lang !== 'en')
     ? `\n\nIMPORTANT: Respond entirely in ${langName}. Every reply must be written in that language, naturally and fluently — matching the user even if they mix in another language.`
@@ -316,7 +369,7 @@ function buildSystem(mode, profile) {
 
 Today: ${today}
 
-${ctx}${constellation}${journal}
+${ctx}${constellation}${journal}${memory}
 ${transits}
 
 YOUR APPROACH:
@@ -326,6 +379,7 @@ YOUR APPROACH:
 — Weave astrological insight into practical, embodied reality — not mystical abstraction.
 — Reference the conversation history you are given. ${name} should feel truly remembered.
 — If journal entries are provided above, treat them as lived context from ${name}'s own hand: notice recurring themes, connect a current question to what they wrote when it resonates, and hold intentions they set. Weave gently — never recite the journal back as a list.
+— If a distilled memory of past conversations is provided, let it give you continuity: remember what you've explored, pick up threads, notice growth. Draw on it naturally, as a companion who remembers — never announce "according to my memory".
 — Responses: usually 2–4 paragraphs. Tight and meaningful. Do not over-explain.
 — One question per response maximum. Make it count.
 — A LIVE EPHEMERIS of the current sky is provided above — real computed positions and aspects to the natal chart. Use it for anything about "now," timing, or current energy. Never invent transit data beyond what is given; if something isn't listed, say so.
