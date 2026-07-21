@@ -171,3 +171,24 @@ function computeGK(hd) {
 }
 
 module.exports = { computeChart, computeHD, computeGK, fmtLon, gateLine, meanNode, eclLon };
+
+// ─── CHINESE ZODIAC ─────────────────────────────────────────────────────────
+// Year animal + element, with Chinese New Year boundary handling (dates table
+// 1984–2050; birthdays before CNY belong to the previous year's sign).
+const CNY = {1984:'02-02',1985:'02-20',1986:'02-09',1987:'01-29',1988:'02-17',1989:'02-06',1990:'01-27',1991:'02-15',1992:'02-04',1993:'01-23',1994:'02-10',1995:'01-31',1996:'02-19',1997:'02-07',1998:'01-28',1999:'02-16',2000:'02-05',2001:'01-24',2002:'02-12',2003:'02-01',2004:'01-22',2005:'02-09',2006:'01-29',2007:'02-18',2008:'02-07',2009:'01-26',2010:'02-14',2011:'02-03',2012:'01-23',2013:'02-10',2014:'01-31',2015:'02-19',2016:'02-08',2017:'01-28',2018:'02-16',2019:'02-05',2020:'01-25',2021:'02-12',2022:'02-01',2023:'01-22',2024:'02-10',2025:'01-29',2026:'02-17',2027:'02-06',2028:'01-26',2029:'02-13',2030:'02-03',2031:'01-23',2032:'02-11',2033:'01-31',2034:'02-19',2035:'02-08',2036:'01-28',2037:'02-15',2038:'02-04',2039:'01-24',2040:'02-12',2041:'02-01',2042:'01-22',2043:'02-10',2044:'01-30',2045:'02-17',2046:'02-06',2047:'01-26',2048:'02-14',2049:'02-02',2050:'01-23'};
+const CN_ANIMALS  = ['Rat','Ox','Tiger','Rabbit','Dragon','Snake','Horse','Goat','Monkey','Rooster','Dog','Pig'];
+const CN_ELEMENTS = ['Wood','Fire','Earth','Metal','Water'];
+
+function chineseSign(dateStr) { // 'YYYY-MM-DD' (local birth date)
+  let [y, m, d] = dateStr.split('-').map(Number);
+  const cny = CNY[y];
+  if (cny) {
+    const [cm, cd] = cny.split('-').map(Number);
+    if (m < cm || (m === cm && d < cd)) y -= 1;
+  } else if (m === 1 || (m === 2 && d < 5)) {
+    y -= 1; // approximate boundary outside the table
+  }
+  return { animal: CN_ANIMALS[(y - 4) % 12], element: CN_ELEMENTS[Math.floor(((y - 4) % 10) / 2)], year: y };
+}
+
+module.exports.chineseSign = chineseSign;
