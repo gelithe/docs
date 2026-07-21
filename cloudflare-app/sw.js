@@ -1,14 +1,14 @@
 // Chart Compass service worker — installable PWA + offline shell.
 // Network-first for the app document so fresh deploys are never stale;
 // cache-first for static icons; API/CDN calls are never intercepted.
-const CACHE = 'chart-compass-v3';
+const CACHE = 'chart-compass-v4';
 const SHELL = [
   './',
   './index.html',
-  './styles.css?v=3',
-  './js/core.js?v=3',
-  './js/engine.js?v=3',
-  './js/app.js?v=3',
+  './styles.css?v=4',
+  './js/core.js?v=4',
+  './js/engine.js?v=4',
+  './js/app.js?v=4',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',

@@ -388,6 +388,8 @@ function saveSessionData(profileId) {
   if (idx >= 0) all[idx] = session; else all.unshift(session);
   saveSessions(profileId, all.slice(0, 120));
   renderBook();
+  // Refresh the distilled memory in the background (gated: at most once per new session)
+  maybeUpdateMemory(profileId);
 }
 
 function newSession() {
