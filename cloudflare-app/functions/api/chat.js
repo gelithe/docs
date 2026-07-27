@@ -22,10 +22,23 @@ export async function onRequestOptions() {
   return new Response(null, { status: 204 });
 }
 
+// Per-task model routing. Set these in Cloudflare → Settings → Variables:
+//   MODEL_CHAT     personal conversation (fast, warm)      — default below
+//   MODEL_DEEP     constellations + portraits (max depth)  — set to an Opus model
+//   MODEL_SUMMARY  memory digest (cheap compression)       — set to a Haiku model
+//   MODEL_OPENAI   model used for OpenAI BYOK
+// Any unset tier falls back to MODEL_DEFAULT, so the app keeps working untouched.
+const MODEL_DEFAULT = 'claude-sonnet-4-6';
+function modelForTier(env, tier) {
+  if (tier === 'deep')    return env.MODEL_DEEP    || MODEL_DEFAULT;
+  if (tier === 'summary') return env.MODEL_SUMMARY || MODEL_DEFAULT;
+  return env.MODEL_CHAT || MODEL_DEFAULT; // chat / anything else
+}
+
 export async function onRequestPost({ request, env }) {
   let body;
   try { body = await request.json(); } catch { body = {}; }
-  const { provider = 'anthropic', model, max_tokens, system, messages, accessCode, userKey, validateOnly } = body || {};
+  const { provider = 'anthropic', model, tier, max_tokens, system, messages, accessCode, userKey, validateOnly } = body || {};
 
   // Resolve the key. BYOK wins; otherwise the access code must match one on the server.
   let key = null, useProvider = provider;
@@ -56,7 +69,7 @@ export async function onRequestPost({ request, env }) {
     const r = await fetch(OPENAI_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-      body: JSON.stringify({ model: model || 'gpt-4o', max_tokens: max_tokens || 1500, messages: msgs })
+      body: JSON.stringify({ model: model || env.MODEL_OPENAI || 'gpt-4o', max_tokens: max_tokens || 1500, messages: msgs })
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return json({ error: data?.error?.message || `OpenAI HTTP ${r.status}` }, r.status);
@@ -64,14 +77,24 @@ export async function onRequestPost({ request, env }) {
   }
 
   // ── Anthropic: stream tokens as plain text ──
-  const payload = { model: model || 'claude-sonnet-4-6', max_tokens: max_tokens || 1500, messages, stream: true };
-  if (system) payload.system = system;
+  // Resolve the model from the requested tier (an explicit model still wins).
+  const wantModel = model || modelForTier(env, tier);
+  async function callAnthropic(useModel) {
+    const payload = { model: useModel, max_tokens: max_tokens || 1500, messages, stream: true };
+    if (system) payload.system = system;
+    return fetch(ANTHROPIC_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify(payload)
+    });
+  }
 
-  const upstream = await fetch(ANTHROPIC_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify(payload)
-  });
+  let upstream = await callAnthropic(wantModel);
+  // Safety net: if a configured tier model is rejected, fall back to the default
+  // so a bad env value never takes the app down.
+  if (!upstream.ok && wantModel !== MODEL_DEFAULT) {
+    upstream = await callAnthropic(MODEL_DEFAULT);
+  }
   if (!upstream.ok || !upstream.body) {
     const e = await upstream.json().catch(() => ({}));
     return json({ error: e?.error?.message || `Anthropic HTTP ${upstream.status}` }, upstream.status || 502);

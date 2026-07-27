@@ -340,6 +340,8 @@ async function callAPI(profile, onChunk) {
     system: buildSystem(S.mode, profile),
     messages: S.messages.slice(-24),
     max_tokens: 1500,
+    // Constellation work holds many charts at once → deeper model; else fast chat
+    tier: S.mode === 'together' ? 'deep' : 'chat',
     onChunk
   });
 }

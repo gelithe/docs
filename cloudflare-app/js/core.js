@@ -169,12 +169,12 @@ async function updateAccessCode() {
   alert(verdict === 'ok' ? 'Access code updated ✓' : 'Saved — could not verify right now, but it will be used.');
 }
 
-async function llmComplete({ system, messages, max_tokens, model, provider, onChunk }) {
+async function llmComplete({ system, messages, max_tokens, model, tier, provider, onChunk }) {
   const res = await fetch(PROXY_ENDPOINT, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      provider, model, max_tokens, system, messages,
+      provider, model, tier, max_tokens, system, messages,
       accessCode: getAccessCode() || undefined,
       userKey: getPersonalKey() || undefined
     })
@@ -320,7 +320,7 @@ async function maybeUpdateMemory(profileId) {
     if (!getKey(profileId)) return;                     // no way to call the model
 
     _memGenerating.add(profileId);
-    const digest = await llmComplete({ messages: [{ role: 'user', content: buildMemoryPrompt(profile, sessions) }], max_tokens: 700 });
+    const digest = await llmComplete({ messages: [{ role: 'user', content: buildMemoryPrompt(profile, sessions) }], max_tokens: 700, tier: 'summary' });
     if (digest?.trim()) saveMemory(profileId, { digest: digest.trim(), count: sessions.length, updatedAt: new Date().toISOString() });
   } catch { /* background best-effort */ }
   finally { _memGenerating.delete(profileId); }

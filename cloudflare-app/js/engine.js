@@ -396,7 +396,7 @@ VOICE: second person, analytical, compact, zero mysticism-for-its-own-sake. Ever
 async function generateDoc(prompt, onChunk) {
   // Full length restored: Cloudflare streams and limits CPU (not wait) time.
   try {
-    return await llmComplete({ messages: [{ role: 'user', content: prompt }], max_tokens: 8000, onChunk });
+    return await llmComplete({ messages: [{ role: 'user', content: prompt }], max_tokens: 8000, tier: 'deep', onChunk });
   } catch { return null; }
 }
 
