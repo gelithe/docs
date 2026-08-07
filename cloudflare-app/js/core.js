@@ -126,6 +126,13 @@ function getJournal(id)     { return JSON.parse(localStorage.getItem(ns(id,'jour
 function saveJournal(id,v)  { localStorage.setItem(ns(id,'journal'),  JSON.stringify(v)); }
 function getMemory(id)      { return JSON.parse(localStorage.getItem(ns(id,'memory'))   || 'null'); }
 function saveMemory(id,v)   { localStorage.setItem(ns(id,'memory'),   JSON.stringify(v)); }
+// Language directive for generated documents (portraits) — they carry no system
+// prompt, so the language must be stated in the prompt itself or they default to English.
+function docLangInstruction() {
+  if (!S.lang || S.lang === 'en') return '';
+  const langName = LANGS[S.lang] ? LANGS[S.lang].en : 'English';
+  return `\n\nIMPORTANT: Write this entire document in ${langName} — the title, every heading, and all body text, natural and fluent. Do not write any part in English.`;
+}
 // This build routes model calls through the same-origin proxy (/api/chat),
 // which holds the API key server-side. Access is gated by a per-person code;
 // a user may still bring their own key (stored locally, sent to the proxy).
