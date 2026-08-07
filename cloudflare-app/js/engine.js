@@ -50,6 +50,12 @@ function renderWizardStep() {
         <label class="w-label">Pick an avatar</label>
         <div class="emoji-grid">${EMOJIS.map(e => `<div class="emoji-opt${WZ.data.emoji === e ? ' selected' : ''}" onclick="pickEmoji('${e}',this)">${e}</div>`).join('')}</div>
       </div>
+      <div class="w-field">
+        <label class="w-label">Language</label>
+        <select class="w-input" id="wLang" onchange="setLang(this.value)">
+          ${Object.keys(LANGS).map(cd => `<option value="${cd}"${S.lang === cd ? ' selected' : ''}>${LANGS[cd].native}</option>`).join('')}
+        </select>
+      </div>
       <div class="wizard-nav">
         ${WZ.editingId ? `<button class="btn-back" onclick="hideWizard()">Cancel</button>` : ''}
         <button class="btn-next" onclick="wNext1()">Continue →</button>
@@ -395,8 +401,9 @@ VOICE: second person, analytical, compact, zero mysticism-for-its-own-sake. Ever
 
 async function generateDoc(prompt, onChunk) {
   // Full length restored: Cloudflare streams and limits CPU (not wait) time.
+  // Append the language directive so portraits honor the chosen language.
   try {
-    return await llmComplete({ messages: [{ role: 'user', content: prompt }], max_tokens: 8000, tier: 'deep', onChunk });
+    return await llmComplete({ messages: [{ role: 'user', content: prompt + docLangInstruction() }], max_tokens: 8000, tier: 'deep', onChunk });
   } catch { return null; }
 }
 
