@@ -648,7 +648,7 @@ textarea.input-box::placeholder { color: var(--text-muted); }
   .h-sub { display: none; }
   .h-title { display: none; }          /* the orb stays as the logo */
   .date-chip { display: none; }
-  .lang-select { display: none; }      /* language moves to the sidebar drawer */
+  #langSelect { display: none; }       /* hide only the HEADER picker; sidebar one stays */
   #profileName { max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .profile-pill { flex-shrink: 1; min-width: 0; }
   .btn-sm { padding: 6px 10px; white-space: nowrap; }
