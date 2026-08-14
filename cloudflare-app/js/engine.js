@@ -304,36 +304,51 @@ function buildDeepAnalysisPrompt(profile) {
   if (profile.humanDesign?.trim()) parts.push(`\nHuman Design:\n${profile.humanDesign.trim()}`);
   if (profile.geneKeys?.trim())    parts.push(`\nGene Keys hologenetic profile:\n${profile.geneKeys.trim()}`);
 
-  return `You are writing a deep psychological portrait for one specific person — a document they will keep, reread for years, and recognize themselves in more each time. This is not a report. It is a mirror tilted at an unusual angle.
+  return `You are writing THE STORY — a piece of literary non-fiction about one real person. Not a chart reading. Not a report. A document they will read straight through the way you read a good book about someone you love, and recognize themselves in more each year.
 
-THE PERSON:
+Its subject is what they cannot see from the inside: the blind spots that run before awareness, and the paradoxes they live inside without naming. It tells them what they don't know they don't know — and what they know without knowing they know it.
+
+THE PERSON (source material for YOUR understanding — see the absolute rule below):
 ${parts.join('\n')}
 
-STRUCTURE (markdown):
+═══ THE ABSOLUTE RULE ═══
+The chart, Human Design, Gene Keys and numerology above are how YOU know what you know. They must be INVISIBLE in what you write. This document contains NO technical vocabulary whatsoever.
 
-# A poetic title for this document — specific to this person, not generic
+Never write: planet names, sign names, house numbers, degrees, aspects, rising/ascendant/midheaven, Generator/Projector/Manifestor/Reflector, sacral/emotional/splenic authority, defined or open centers, channels, gates, profile numbers (4/6, 2/4), Gene Key names or numbers, Shadow/Gift/Siddhi, Life Path or Expression numbers — or any phrase like "your chart shows", "this placement", "your design", "your type".
 
-An opening passage of 150–250 words. Literary, intimate, quietly authoritative. Tell them what this document is and is not. Set a tone of respect for their depth.
+Instead of "your Scorpio Moon in the 8th makes you feel deeply", write "You feel things at a depth other people don't quite believe is real until they see it."
+
+The reader should finish this document without ever learning it came from a birth chart. If they wanted the mechanics, they would open The Analysis — that is what it is for. Every technical word you resist here is a technical word that belongs there instead.
+
+═══ STRUCTURE (markdown) ═══
+
+# A title that is an image, not a label — specific to this person
+
+An opening of 150–250 words. Intimate, unhurried, quietly certain. Establish who this is about and why the next pages may be uncomfortable. Do not explain the method. Begin the way a good essay begins: in the middle of something true.
 
 ## Part One: What You Don't Know You Don't Know
 
-Seven sections, each with a short evocative title (### heading). Each names one invisible pattern — something that operates before conscious awareness and shapes decisions from the background. 200–260 words each. This is the crucial instruction: weave the systems together. Let an astrological placement, a Human Design mechanic, and a Gene Key shadow illuminate the SAME pattern from three different angles — when they converge on one truth, name the convergence explicitly. Where the person's type and authority (Human Design) explain HOW a pattern runs, and a Gene Key names WHAT its shadow feels like, and a house placement shows WHERE in life it plays out — braid them into one narrative, not three parallel summaries.
+Six sections, each with a short evocative title (### heading) — an image or a phrase, never a category name. Each one names a single pattern that runs before they notice it, and shows it happening: the room, the conversation, the decision made three seconds before they knew they'd made it. 220–280 words each.
 
-## Part Two: Paradoxes to Be Aware Of, Embrace, and Embody
+Where the sources converge on the same truth, let that show as CERTAINTY in your voice — not as a cited convergence. You are allowed to be sure. You are not allowed to show your work.
 
-Seven sections, each with a short evocative title (### heading). Each describes a genuine tension — two real needs that cannot be resolved in sequence, only held simultaneously — and how holding it consciously becomes a source of unusual power. 200–260 words each. Same weaving principle: cross-reference the systems where they speak to the same tension.
+## Part Two: The Paradoxes You Live Inside
 
-## How to Work with These
+Six sections, same form. Each holds two real needs that cannot be resolved in sequence, only carried at once — and shows how carrying them knowingly becomes a strange kind of power. 220–280 words each.
 
-One short practice per major theme — one or two sentences each, concrete, repeatable, humble. Not affirmations: instructions.
+## What to Do With Any of This
 
-Close with a final passage of 2–4 sentences that lands like the last page of a good book.
+Six or seven quiet suggestions, one or two sentences each. Practical, humble, repeatable. Things a person could actually do on a Tuesday. Not affirmations, not instructions from above — the tone of a friend who has thought about this carefully.
 
-VOICE:
-— Second person throughout. Psychologically precise, poetic but never vague. The register of a depth psychologist who also reads charts, bodygraphs, and gene keys fluently.
-— Derive every insight from the actual data above. Never use generic sun-sign talk. If data is missing (no birth time, etc.), work gracefully with what exists.
-— Avoid flattery. The document should feel slightly uncomfortable in the way true things are.
-— Total length approximately 3500–4500 words. Be complete and land the ending; do not leave a section unfinished.`;
+Close with a short final passage, 3–5 sentences, that lands like the last page of a good book.
+
+═══ VOICE ═══
+— Second person, throughout. Warm, exact, adult. The register of a novelist who has known them twenty years and is finally saying the thing out loud.
+— SHOW, don't classify. Concrete scenes and recognizable moments beat abstract description every time. "You reread the message four times before sending it" beats "you are prone to self-doubt in communication."
+— Readable above all. Flowing prose, varied sentence length, no bullet lists inside sections, no jargon of any kind — not astrological, not psychological-clinical.
+— No flattery, no horoscope generalities. It should be slightly uncomfortable in the way true things are, and never cruel.
+— Every insight must be genuinely derived from the source material above — the discipline is real, only the vocabulary is hidden. If data is thin, write with less certainty rather than inventing.
+— Total length approximately 3000–3600 words. Land the ending; never leave a section unfinished.`;
 }
 
 function buildTechAnalysisPrompt(profile) {
@@ -396,7 +411,9 @@ Grounded in 7th house, Venus, Mars, and the Venus Sequence. Attachment style, ne
 ## Quick Reference
 A code block (\`\`\`) with one aligned line per placement: planet, sign+degree, house, keyword. Include HD type/authority/profile and the GK sequence gates as final lines.
 
-VOICE: second person, analytical, compact, zero mysticism-for-its-own-sake. Every claim traceable to a specific data point above. If data is missing, say so and move on. Approximately 2000–2800 words.`;
+VOICE: second person, analytical, compact, zero mysticism-for-its-own-sake. Every claim traceable to a specific data point above. If data is missing, say so and move on. Approximately 2000–2800 words.
+
+NOTE ON THE PAIR: this document is the technical half of a pair. Its companion, The Story, is written with all technical vocabulary deliberately removed. So THIS is where the mechanics belong — name every placement, gate, center and number precisely here. Be the reference; let the other be the mirror.`;
 }
 
 async function generateDoc(prompt, onChunk) {
