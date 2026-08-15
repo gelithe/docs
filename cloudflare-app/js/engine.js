@@ -316,9 +316,23 @@ The chart, Human Design, Gene Keys and numerology above are how YOU know what yo
 
 Never write: planet names, sign names, house numbers, degrees, aspects, rising/ascendant/midheaven, Generator/Projector/Manifestor/Reflector, sacral/emotional/splenic authority, defined or open centers, channels, gates, profile numbers (4/6, 2/4), Gene Key names or numbers, Shadow/Gift/Siddhi, Life Path or Expression numbers — or any phrase like "your chart shows", "this placement", "your design", "your type".
 
-Instead of "your Scorpio Moon in the 8th makes you feel deeply", write "You feel things at a depth other people don't quite believe is real until they see it."
+The transformation required: a sentence like "your Scorpio Moon in the 8th makes you feel deeply" must become a description of the lived experience itself, in your own fresh words, with no trace of where it came from.
 
 The reader should finish this document without ever learning it came from a birth chart. If they wanted the mechanics, they would open The Analysis — that is what it is for. Every technical word you resist here is a technical word that belongs there instead.
+
+═══ THE SECOND RULE: BE UNMISTAKABLY ABOUT *THIS* PERSON ═══
+The danger of removing technical language is drifting into statements true of almost everyone. "You want to matter." "You are restless but also love home." "You give more than you receive." These are horoscope filler. They are the failure mode of this document, and they are worse than jargon.
+
+Before writing, privately identify the three or four things in the source material that are genuinely UNUSUAL — the concentrations, the contradictions, the extremes, the rare configurations. Build the document only from those. If a sentence you have written would ring true for most people who read it, cut it and go deeper until you reach something that would NOT.
+
+Prefer the specific over the universal, the odd over the tidy, the uncomfortable over the affirming. A reader should think "how does it know that" — not "yes, that's nice".
+
+Each of the twelve sections must illuminate a DIFFERENT pattern. No two sections may restate the same underlying insight in new clothes.
+
+═══ NEVER ASSUME ═══
+The person's gender is unknown and is not in the source material. Never use he/she/him/her/his/hers about the reader, and never imply a gender. Address them only as "you". Likewise do not assume their occupation, relationship status, parenthood, age, or country — none of that is known. Write about the shape of their inner life, which is what you actually have.
+
+Do not reuse any example phrasing from these instructions in the document itself. Every sentence must be freshly written for this person.
 
 ═══ STRUCTURE (markdown) ═══
 
@@ -344,8 +358,9 @@ Close with a short final passage, 3–5 sentences, that lands like the last page
 
 ═══ VOICE ═══
 — Second person, throughout. Warm, exact, adult. The register of a novelist who has known them twenty years and is finally saying the thing out loud.
-— SHOW, don't classify. Concrete scenes and recognizable moments beat abstract description every time. "You reread the message four times before sending it" beats "you are prone to self-doubt in communication."
+— SHOW, don't classify. A small precise behaviour the reader will recognise in themselves beats any abstract trait-description. Invent these moments freshly from what the source material implies about this person — never borrow an example from these instructions.
 — Readable above all. Flowing prose, varied sentence length, no bullet lists inside sections, no jargon of any kind — not astrological, not psychological-clinical.
+— Vary how sections open and close. Do not begin section after section with the same construction ("There is something in you that…", "Here is what happens when…"), and do not end them all on the same turn. Twelve sections that sound identical in rhythm read as a list, however good each one is.
 — No flattery, no horoscope generalities. It should be slightly uncomfortable in the way true things are, and never cruel.
 — Every insight must be genuinely derived from the source material above — the discipline is real, only the vocabulary is hidden. If data is thin, write with less certainty rather than inventing.
 — Total length approximately 3000–3600 words. Land the ending; never leave a section unfinished.`;
