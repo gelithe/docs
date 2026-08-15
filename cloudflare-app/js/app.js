@@ -84,15 +84,35 @@ function updateSidebarChart(profile) {
     return;
   }
 
-  // Try to extract key lines from pasted chart text
-  const lines = profile.chartText.split('\n')
-    .map(l => l.trim())
-    .filter(l => l.length > 2)
-    .slice(0, 14);
+  // Everything the Compass actually knows — not just the natal placements.
+  // Numerology, Human Design and Gene Keys are all computed and sent to the
+  // model, so they belong on screen too.
+  const block = (title, text, limit) => {
+    if (!text?.trim()) return '';
+    const rows = text.split('\n').map(l => l.trim()).filter(l => l.length > 1);
+    const shown = limit ? rows.slice(0, limit) : rows;
+    return `<div class="sb-label" style="margin:10px 0 5px;">${title}</div>` + shown.map(l =>
+      `<div class="prow" style="font-size:0.7rem;color:var(--text-muted);">${esc(l)}</div>`
+    ).join('');
+  };
 
-  data.innerHTML = lines.map(l =>
-    `<div class="prow" style="font-size:0.7rem;color:var(--text-muted);">${esc(l)}</div>`
-  ).join('') || `<div style="color:var(--text-muted);font-size:0.7rem;">Chart data saved.</div>`;
+  let numerology = '';
+  if (profile.birthDate) {
+    const nums = [`Life Path ${calcLifePath(profile.birthDate)}`];
+    if (profile.fullName?.trim()) {
+      const exp = calcExpression(profile.fullName), soul = calcSoulUrge(profile.fullName);
+      if (exp)  nums.push(`Expression ${exp}`);
+      if (soul) nums.push(`Soul Urge ${soul}`);
+    }
+    numerology = nums.join('\n');
+  }
+
+  data.innerHTML =
+      block('Natal chart', profile.chartText, 16)
+    + block('Numerology', numerology)
+    + block('Human Design', profile.humanDesign, 8)
+    + block('Gene Keys', profile.geneKeys, 20)
+    || `<div style="color:var(--text-muted);font-size:0.7rem;">Chart data saved.</div>`;
 }
 
 // ─── PROFILE DROPDOWN ─────────────────────────────────────────────────────────
