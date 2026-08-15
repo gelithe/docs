@@ -304,66 +304,47 @@ function buildDeepAnalysisPrompt(profile) {
   if (profile.humanDesign?.trim()) parts.push(`\nHuman Design:\n${profile.humanDesign.trim()}`);
   if (profile.geneKeys?.trim())    parts.push(`\nGene Keys hologenetic profile:\n${profile.geneKeys.trim()}`);
 
-  return `You are writing THE STORY — a piece of literary non-fiction about one real person. Not a chart reading. Not a report. A document they will read straight through the way you read a good book about someone you love, and recognize themselves in more each year.
+  return `You are writing THE STORY for ${profile.name} — the first of two documents about who they are.
 
-Its subject is what they cannot see from the inside: the blind spots that run before awareness, and the paradoxes they live inside without naming. It tells them what they don't know they don't know — and what they know without knowing they know it.
+The second, The Analysis, holds every mechanic: degrees, aspects, houses, gates, centres, the full placement tables. Because that document exists, this one is free to be what it should be — a piece of literary non-fiction that someone reads straight through and recognises themselves in, and rereads years later and recognises themselves again.
 
-THE PERSON (source material for YOUR understanding — see the absolute rule below):
+Its subject is the part they cannot see from the inside: the patterns that run before awareness, and the contradictions they live inside without ever naming. What they don't know they don't know — and what they know without knowing they know it.
+
+THE PERSON:
 ${parts.join('\n')}
 
-═══ THE ABSOLUTE RULE ═══
-The chart, Human Design, Gene Keys and numerology above are how YOU know what you know. They must be INVISIBLE in what you write. This document contains NO technical vocabulary whatsoever.
+HOW TO USE THE SKY
+Name it the way a poet would, not the way a chart would. "Your Scorpio moon" belongs here — it is beautiful, and it tells the reader something. "Moon 27°42′ Scorpio in the 8th, trine Neptune" does not, and neither do gate numbers, profile lines, defined and open centres, or Shadow/Gift/Siddhi labels. The test is simple: if a phrase would send someone looking for a glossary, it belongs in The Analysis. A handful of graceful references across the whole document is the right amount — enough that the sky is quietly present, never so many that this becomes a reading.
 
-Never write: planet names, sign names, house numbers, degrees, aspects, rising/ascendant/midheaven, Generator/Projector/Manifestor/Reflector, sacral/emotional/splenic authority, defined or open centers, channels, gates, profile numbers (4/6, 2/4), Gene Key names or numbers, Shadow/Gift/Siddhi, Life Path or Expression numbers — or any phrase like "your chart shows", "this placement", "your design", "your type".
+WRITE IT LIKE THIS
+Second person, warm and exact, adult — the register of a long-form profile in a magazine you admire, written by someone who has watched this person for twenty years and is finally saying it out loud.
 
-The transformation required: a sentence like "your Scorpio Moon in the 8th makes you feel deeply" must become a description of the lived experience itself, in your own fresh words, with no trace of where it came from.
+Start from what is unusual. The concentrations, the contradictions, the extremes, the things that would not be true of the next person who walks in. That is where the real portrait lives. Anything that would ring true for most readers is filler; go deeper until you reach something that wouldn't.
 
-The reader should finish this document without ever learning it came from a birth chart. If they wanted the mechanics, they would open The Analysis — that is what it is for. Every technical word you resist here is a technical word that belongs there instead.
+Show it happening rather than naming the trait: the specific moment, the small telling behaviour, the decision made three seconds before they knew they had made it. Twelve patterns, twelve different rhythms — no two sections saying the same thing in new clothes.
 
-═══ THE SECOND RULE: BE UNMISTAKABLY ABOUT *THIS* PERSON ═══
-The danger of removing technical language is drifting into statements true of almost everyone. "You want to matter." "You are restless but also love home." "You give more than you receive." These are horoscope filler. They are the failure mode of this document, and they are worse than jargon.
+Their gender, work, age and circumstances are genuinely unknown, so write about the shape of an inner life and address them simply as "you".
 
-Before writing, privately identify the three or four things in the source material that are genuinely UNUSUAL — the concentrations, the contradictions, the extremes, the rare configurations. Build the document only from those. If a sentence you have written would ring true for most people who read it, cut it and go deeper until you reach something that would NOT.
+Be willing to be uncomfortable — not cruel, accurate. This document should cost something to read, and be worth the cost.
 
-Prefer the specific over the universal, the odd over the tidy, the uncomfortable over the affirming. A reader should think "how does it know that" — not "yes, that's nice".
+STRUCTURE (markdown)
 
-Each of the twelve sections must illuminate a DIFFERENT pattern. No two sections may restate the same underlying insight in new clothes.
+# A title that is an image, not a label
 
-═══ NEVER ASSUME ═══
-The person's gender is unknown and is not in the source material. Never use he/she/him/her/his/hers about the reader, and never imply a gender. Address them only as "you". Likewise do not assume their occupation, relationship status, parenthood, age, or country — none of that is known. Write about the shape of their inner life, which is what you actually have.
-
-Do not reuse any example phrasing from these instructions in the document itself. Every sentence must be freshly written for this person.
-
-═══ STRUCTURE (markdown) ═══
-
-# A title that is an image, not a label — specific to this person
-
-An opening of 150–250 words. Intimate, unhurried, quietly certain. Establish who this is about and why the next pages may be uncomfortable. Do not explain the method. Begin the way a good essay begins: in the middle of something true.
+An opening of 150–250 words that begins in the middle of something true.
 
 ## Part One: What You Don't Know You Don't Know
-
-Six sections, each with a short evocative title (### heading) — an image or a phrase, never a category name. Each one names a single pattern that runs before they notice it, and shows it happening: the room, the conversation, the decision made three seconds before they knew they'd made it. 220–280 words each.
-
-Where the sources converge on the same truth, let that show as CERTAINTY in your voice — not as a cited convergence. You are allowed to be sure. You are not allowed to show your work.
+Six sections, each with a short evocative ### title, 220–280 words — one invisible pattern each.
 
 ## Part Two: The Paradoxes You Live Inside
-
-Six sections, same form. Each holds two real needs that cannot be resolved in sequence, only carried at once — and shows how carrying them knowingly becomes a strange kind of power. 220–280 words each.
+Six sections, same form. Each holds two real needs that cannot be resolved in sequence, only carried at once — and the strange power in carrying them knowingly.
 
 ## What to Do With Any of This
+Six or seven quiet, practical suggestions, a sentence or two each. Things a person could actually do on a Tuesday.
 
-Six or seven quiet suggestions, one or two sentences each. Practical, humble, repeatable. Things a person could actually do on a Tuesday. Not affirmations, not instructions from above — the tone of a friend who has thought about this carefully.
+Close with three to five sentences that land like the last page of a good book.
 
-Close with a short final passage, 3–5 sentences, that lands like the last page of a good book.
-
-═══ VOICE ═══
-— Second person, throughout. Warm, exact, adult. The register of a novelist who has known them twenty years and is finally saying the thing out loud.
-— SHOW, don't classify. A small precise behaviour the reader will recognise in themselves beats any abstract trait-description. Invent these moments freshly from what the source material implies about this person — never borrow an example from these instructions.
-— Readable above all. Flowing prose, varied sentence length, no bullet lists inside sections, no jargon of any kind — not astrological, not psychological-clinical.
-— Vary how sections open and close. Do not begin section after section with the same construction ("There is something in you that…", "Here is what happens when…"), and do not end them all on the same turn. Twelve sections that sound identical in rhythm read as a list, however good each one is.
-— No flattery, no horoscope generalities. It should be slightly uncomfortable in the way true things are, and never cruel.
-— Every insight must be genuinely derived from the source material above — the discipline is real, only the vocabulary is hidden. If data is thin, write with less certainty rather than inventing.
-— Total length approximately 3000–3600 words. Land the ending; never leave a section unfinished.`;
+Around 3000–3600 words. Land the ending.`;
 }
 
 function buildTechAnalysisPrompt(profile) {
