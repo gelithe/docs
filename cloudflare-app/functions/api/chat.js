@@ -6,8 +6,12 @@
 //
 // Environment variables (Cloudflare Pages → Settings → Environment variables):
 //   ANTHROPIC_API_KEY   your Anthropic key (used when a caller passes a valid code)
-//   ACCESS_CODES        comma-separated codes, e.g. "anna-7x2k,dad-m9p4,me-0000"
-//                       (if unset/empty, the proxy runs OPEN — dev only)
+//   ACCESS_CODES        comma-separated codes. Either bare ("anna-7x2k") or
+//                       labelled with who holds it ("anna:anna-7x2k,dad:dad-m9p4").
+//                       Labels make this variable the register of who has what —
+//                       revoke someone by deleting their entry. The label is
+//                       logged (never message content) so live logs show who is
+//                       active. (If unset/empty, the proxy runs OPEN — dev only.)
 //   OPENAI_API_KEY      optional; enables provider:"openai" and OpenAI BYOK
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
@@ -16,7 +20,21 @@ const OPENAI_URL    = 'https://api.openai.com/v1/chat/completions';
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json' } });
 
-const codes = env => (env.ACCESS_CODES || '').split(',').map(s => s.trim()).filter(Boolean);
+// ACCESS_CODES entries may be a bare code ("dad-m9p4") or a labelled one
+// ("dad:dad-m9p4"). The label is only ever a note to the owner — it makes the
+// Cloudflare variable itself the register of who holds which code, so no list
+// of live codes has to exist anywhere else.
+const codes = env => (env.ACCESS_CODES || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean)
+  .map(entry => {
+    const i = entry.indexOf(':');
+    return i > 0
+      ? { label: entry.slice(0, i).trim(), code: entry.slice(i + 1).trim() }
+      : { label: '', code: entry };
+  })
+  .filter(e => e.code);
 
 export async function onRequestOptions() {
   return new Response(null, { status: 204 });
@@ -41,14 +59,16 @@ export async function onRequestPost({ request, env }) {
   const { provider = 'anthropic', model, tier, max_tokens, system, messages, accessCode, userKey, validateOnly } = body || {};
 
   // Resolve the key. BYOK wins; otherwise the access code must match one on the server.
-  let key = null, useProvider = provider;
+  let key = null, useProvider = provider, matched = null;
   const byok = typeof userKey === 'string' && userKey.trim();
   if (byok) {
     key = userKey.trim();
     useProvider = key.startsWith('sk-ant-') ? 'anthropic' : 'openai';
   } else {
     const allowed = codes(env);
-    if (allowed.length && !allowed.includes(String(accessCode || '').trim())) {
+    const given = String(accessCode || '').trim();
+    matched = allowed.find(e => e.code === given) || null;
+    if (allowed.length && !matched) {
       return json({ error: 'Invalid or missing access code.' }, 401);
     }
     key = useProvider === 'openai' ? env.OPENAI_API_KEY : env.ANTHROPIC_API_KEY;
@@ -62,6 +82,11 @@ export async function onRequestPost({ request, env }) {
 
   if (!Array.isArray(messages) || messages.length === 0) return json({ error: 'messages array required' }, 400);
   if (!key) return json({ error: `Server is missing the ${useProvider} key.` }, 500);
+
+  // Usage signal for the owner: WHO is calling and which tier — never any
+  // message content, and nothing is stored. Visible in Cloudflare → the Pages
+  // project → Logs while a live tail is open.
+  console.log(`compass access=${byok ? 'own-key' : (matched?.label || 'unlabelled')} tier=${tier || 'chat'}`);
 
   // ── OpenAI: non-streaming JSON (client falls back to { text }) ──
   if (useProvider === 'openai') {
