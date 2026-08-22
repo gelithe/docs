@@ -18,7 +18,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:ital,wght@0,300;0,400;0,700;1,300;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=12">
+<link rel="stylesheet" href="styles.css?v=13">
 </head>
 <body>
 
@@ -35,7 +35,7 @@
     <p class="wizard-sub">Written plainly, because you should not have to guess.</p>
     <div style="font-size:0.83rem;line-height:1.7;color:var(--text);display:flex;flex-direction:column;gap:12px;">
       <p><strong>Your data lives on this device.</strong> Profiles, charts, conversations, journal entries and portraits are stored only in this browser. There are no accounts and no database. If you clear this browser's data, it is gone — use Backup → Export to keep a copy.</p>
-      <p><strong>When you send a message,</strong> your message and your chart context are sent over HTTPS to this app's server (<code>/api/chat</code>), which forwards them to Anthropic (Claude) to write the reply, then streams it back. The server keeps no copies, has no database, and logs no conversation content — the only thing it notes is which access code was used (by its label) and nothing of what was said. Anthropic processes API messages to generate the reply and does not use them to train its models.</p>
+      <p><strong>When you send a message,</strong> your message and your chart context are sent over HTTPS to this app's server (<code>/api/chat</code>), which forwards them to Anthropic (Claude) to write the reply, then streams it back. The server keeps no copy of your message and stores nothing you write. The only thing it may record is a running count of how often each access code has been used — a number and a date, never a word of what was said. Anthropic processes API messages to generate the reply and does not use them to train its models.</p>
       <p><strong>If you use an access code,</strong> replies run on the app owner's API key. The owner can see total usage and cost on their key, but has no record of what you write — conversations exist only on your device.</p>
       <p><strong>If you use your own API key,</strong> it is stored only in this browser and sent with each request to the server, which passes it to the AI provider and does not store it. Sensible precautions: use a dedicated key, set a monthly spend cap at <strong>console.anthropic.com</strong>, and revoke it there any time. Your key is never included in backups.</p>
       <p><strong>Verify, don't trust:</strong> this app's full source code is public — <code>github.com/gelithe/docs</code> (the <code>cloudflare-app</code> folder). Anyone technical can confirm the key goes only to <code>/api/chat</code> → <code>api.anthropic.com</code> and is never stored.</p>
@@ -185,8 +185,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2/astronomy.browser.min.js"></script>
-<script src="js/core.js?v=12"></script>
-<script src="js/engine.js?v=12"></script>
-<script src="js/app.js?v=12"></script>
+<script src="js/core.js?v=13"></script>
+<script src="js/engine.js?v=13"></script>
+<script src="js/app.js?v=13"></script>
 </body>
 </html>

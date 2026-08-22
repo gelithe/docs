@@ -53,7 +53,30 @@ function modelForTier(env, tier) {
   return env.MODEL_CHAT || MODEL_DEFAULT; // chat / anything else
 }
 
-export async function onRequestPost({ request, env }) {
+
+// ─── USAGE TALLY (optional) ──────────────────────────────────────────────────
+// Bind a KV namespace called USAGE in Cloudflare to keep a running count per
+// access-code label. Stores only: how many calls, when last seen, and the split
+// by tier. No message content, no chart data, no names — nothing a person wrote.
+// If the binding is absent this is a silent no-op and nothing changes.
+async function recordUsage(env, label, tier) {
+  try {
+    if (!env.USAGE || !label) return;
+    const key = `usage:${label}`;
+    const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const prev = JSON.parse((await env.USAGE.get(key)) || '{}');
+    const rec = {
+      total: (prev.total || 0) + 1,
+      month,
+      monthCount: prev.month === month ? (prev.monthCount || 0) + 1 : 1,
+      lastSeen: new Date().toISOString(),
+      tiers: { ...(prev.tiers || {}), [tier]: ((prev.tiers || {})[tier] || 0) + 1 }
+    };
+    await env.USAGE.put(key, JSON.stringify(rec));
+  } catch { /* tallying must never affect a reply */ }
+}
+
+export async function onRequestPost({ request, env, waitUntil }) {
   let body;
   try { body = await request.json(); } catch { body = {}; }
   const { provider = 'anthropic', model, tier, max_tokens, system, messages, accessCode, userKey, validateOnly } = body || {};
@@ -86,7 +109,11 @@ export async function onRequestPost({ request, env }) {
   // Usage signal for the owner: WHO is calling and which tier — never any
   // message content, and nothing is stored. Visible in Cloudflare → the Pages
   // project → Logs while a live tail is open.
-  console.log(`compass access=${byok ? 'own-key' : (matched?.label || 'unlabelled')} tier=${tier || 'chat'}`);
+  const who = byok ? 'own-key' : (matched?.label || 'unlabelled');
+  console.log(`compass access=${who} tier=${tier || 'chat'}`);
+  // Durable tally, only if a USAGE KV namespace is bound (optional — the app
+  // works identically without it). Counts per person, never content.
+  if (waitUntil) waitUntil(recordUsage(env, who, tier || 'chat'));
 
   // ── OpenAI: non-streaming JSON (client falls back to { text }) ──
   if (useProvider === 'openai') {
