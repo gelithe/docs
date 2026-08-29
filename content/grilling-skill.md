@@ -33,4 +33,4 @@ Scoping a project before a single line is written, choosing between architecture
 
 ## Note
 
-The skill's routing text points overflow work at three sibling skills — `idea-refine`, `idea-generator`, `tournament-of-ideas` — which are not installed here. Only `grilling` is available; the other phrasings currently fall through to normal conversation.
+An earlier version of this skill routed other phrasings to three sibling skills — `idea-refine`, `idea-generator`, `tournament-of-ideas`. None of them exist, so that routing was removed. "Stress-test this", "poke holes in this" and the like are now simply handled in normal conversation; only the word **grill** invokes the full round-by-round treatment.
