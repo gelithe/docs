@@ -1,0 +1,5 @@
+
+# transcript archives must never be committed (see tools/README.md)
+claude-archive/
+*.jsonl
+__pycache__/
