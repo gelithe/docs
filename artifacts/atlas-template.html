@@ -1,0 +1,408 @@
+<title>AI Advantage Atlas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&display=swap">
+<style>
+/* Layout: sticky filter rail over a stat row, a chart grid, then the roster table. */
+:root{
+  --plane:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10);
+  --accent:#2a78d6; --accent-ink:#184f95; --accent-wash:rgba(42,120,214,.10);
+  --r1:#0d366b; --r2:#256abf; --r3:#3987e5; --r4:#86b6ef;
+  --shadow:0 1px 2px rgba(11,11,11,.05);
+  --display:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --data:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --plane:#0d0d0d; --surface:#1a1a19; --ink:#fff; --ink-2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+  --accent:#3987e5; --accent-ink:#86b6ef; --accent-wash:rgba(57,135,229,.16);
+  --r1:#b7d3f6; --r2:#86b6ef; --r3:#3987e5; --r4:#184f95;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --plane:#0d0d0d; --surface:#1a1a19; --ink:#fff; --ink-2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10);
+  --accent:#3987e5; --accent-ink:#86b6ef; --accent-wash:rgba(57,135,229,.16);
+  --r1:#b7d3f6; --r2:#86b6ef; --r3:#3987e5; --r4:#184f95;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--plane);color:var(--ink);font-family:var(--data);
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:28px 64px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:clamp(24px,4vw,34px);font-weight:700;letter-spacing:-.02em}
+h2{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);font-family:var(--display)}
+.lede{color:var(--ink-2);max-width:66ch;margin-top:8px}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---- filter rail ---- */
+.rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--plane);
+  border-bottom:1px solid var(--border);margin-top:22px;padding-block:10px;
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.rail input[type=search],.rail select{font:inherit;font-size:13px;color:var(--ink);
+  background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:7px 9px;
+  min-width:0}
+.rail input[type=search]{flex:1 1 190px}
+.rail select{flex:0 1 auto;max-width:180px}
+.chip{font:inherit;font-size:12.5px;font-weight:500;color:var(--ink-2);background:var(--surface);
+  border:1px solid var(--border);border-radius:99px;padding:6px 12px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--accent-wash);border-color:var(--accent);
+  color:var(--accent-ink);font-weight:600}
+.chip.reset{border-style:dashed}
+:is(input,select,button,a,th):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.count{margin-left:auto;font-size:12.5px;color:var(--muted);white-space:nowrap}
+
+/* ---- stat tiles ---- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(152px,1fr));gap:10px;
+  margin-top:18px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:13px 14px;box-shadow:var(--shadow);min-width:0}
+.tile .k{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted);font-family:var(--display)}
+.tile .v{font-size:27px;font-weight:600;letter-spacing:-.02em;margin-top:5px;
+  font-variant-numeric:tabular-nums;line-height:1.1}
+.tile .s{font-size:12px;color:var(--ink-2);margin-top:3px}
+
+/* ---- charts ---- */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:12px;
+  margin-top:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:15px 16px 16px;box-shadow:var(--shadow);min-width:0}
+.card .hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  margin-bottom:3px}
+.card .note{font-size:12px;color:var(--muted);margin:0 0 12px}
+.rows{display:flex;flex-direction:column;gap:5px}
+.row{display:grid;grid-template-columns:minmax(74px,31%) 1fr auto;gap:9px;align-items:center;
+  cursor:default;border-radius:5px}
+.row:hover{background:var(--accent-wash)}
+.row .lab{font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;min-width:0}
+.track{height:13px;background:var(--grid);border-radius:4px;overflow:hidden;min-width:0}
+.fill{height:100%;background:var(--accent);border-radius:4px;min-width:2px;
+  transition:width .28s cubic-bezier(.4,0,.2,1)}
+.row .val{font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink-2);
+  min-width:3.1em;text-align:right}
+.legend{display:flex;flex-wrap:wrap;gap:9px;margin-top:11px;padding-top:10px;
+  border-top:1px solid var(--grid);font-size:11.5px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:10px;height:10px;border-radius:2px;flex:none}
+.empty{font-size:12.5px;color:var(--muted);padding:14px 0}
+
+/* ---- table ---- */
+.tablecard{margin-top:12px;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
+.tablehd{padding:15px 16px 12px;border-bottom:1px solid var(--grid)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:8px 11px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{position:sticky;top:0;background:var(--surface);font-family:var(--display);font-size:11px;
+  font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  white-space:nowrap;cursor:pointer;user-select:none;z-index:1}
+th:hover{color:var(--ink)}
+th .dir{color:var(--accent);font-size:9px}
+tbody tr:hover{background:var(--accent-wash)}
+td.nm{font-weight:600;white-space:nowrap}
+td.fc{color:var(--ink-2);max-width:340px;min-width:170px}
+td.lc{white-space:nowrap;color:var(--ink-2)}
+td a{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid var(--border)}
+td a:hover{border-bottom-color:currentColor}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px;
+  background:var(--accent-wash);color:var(--accent-ink);white-space:nowrap}
+.flag{color:var(--muted);font-size:11px;margin-left:4px}
+.meter{display:flex;align-items:center;gap:7px;min-width:78px}
+.meter .mt{width:42px;height:6px;border-radius:3px;background:var(--grid);overflow:hidden;flex:none}
+.meter .mf{height:100%;border-radius:3px;background:var(--accent)}
+.meter .mv{font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.more{padding:12px 16px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--grid)}
+.foot{margin-top:26px;font-size:12.5px;color:var(--muted);max-width:74ch}
+.foot p{margin:0 0 7px}
+.foot b{color:var(--ink-2);font-weight:600}
+/* tooltip */
+#tip{position:fixed;z-index:60;pointer-events:none;opacity:0;transition:opacity .12s;
+  background:var(--ink);color:var(--plane);font-size:12px;line-height:1.45;padding:7px 10px;
+  border-radius:7px;max-width:250px;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+#tip b{font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:560px){
+  .row{grid-template-columns:minmax(64px,38%) 1fr auto}
+  td.fc{max-width:200px}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">AI Advantage Club · 608 profiles · snapshot 29 Sep 2026</p>
+    <h1>AI Advantage Atlas</h1>
+    <p class="lede">The club directory as a database. Every filter below redraws the charts and
+      the roster, so you can ask where your peers are, what they do, and which profiles actually
+      tell you enough to act on.</p>
+  </header>
+
+  <div class="rail" role="group" aria-label="Filters">
+    <input type="search" id="q" placeholder="Search name, bio or place…" aria-label="Search">
+    <select id="fCountry" aria-label="Country"><option value="">All countries</option></select>
+    <select id="fDomain" aria-label="Domain"><option value="">All domains</option></select>
+    <button class="chip" id="cPeers" aria-pressed="true">Peers only</button>
+    <button class="chip" id="cBio" aria-pressed="false">Has a bio</button>
+    <button class="chip" id="cLoc" aria-pressed="false">Has a location</button>
+    <button class="chip reset" id="cReset">Reset</button>
+    <span class="count" id="count"></span>
+  </div>
+
+  <section class="tiles" id="tiles"></section>
+
+  <section class="grid">
+    <div class="card">
+      <div class="hd"><h2>How much each profile tells you</h2></div>
+      <p class="note">Completeness scores a profile on its bio, how precisely it gives a
+        location, and whether a domain could be read from it.</p>
+      <div class="rows" id="chCompleteness"></div>
+      <div class="legend" id="lgCompleteness"></div>
+    </div>
+    <div class="card">
+      <div class="hd"><h2>How precisely they say where they are</h2></div>
+      <p class="note">One free-text box produced answers at four different resolutions. This is
+        the scattered field, measured.</p>
+      <div class="rows" id="chPrecision"></div>
+      <div class="legend" id="lgPrecision"></div>
+    </div>
+    <div class="card">
+      <div class="hd"><h2>Countries</h2><span class="note" style="margin:0" id="nCountry"></span></div>
+      <p class="note">Members who named a place specific enough to resolve to a country.</p>
+      <div class="rows" id="chCountry"></div>
+    </div>
+    <div class="card">
+      <div class="hd"><h2>Domains</h2><span class="note" style="margin:0" id="nDomain"></span></div>
+      <p class="note">Read from the bio against a fixed 11-term vocabulary. Blank bios are not
+        counted.</p>
+      <div class="rows" id="chDomain"></div>
+    </div>
+    <div class="card">
+      <div class="hd"><h2>US states</h2></div>
+      <p class="note">Where the American majority actually sits.</p>
+      <div class="rows" id="chState"></div>
+    </div>
+    <div class="card">
+      <div class="hd"><h2>Cities</h2></div>
+      <p class="note">Only members who named a city — the closest thing to a meet-up map.</p>
+      <div class="rows" id="chCity"></div>
+    </div>
+  </section>
+
+  <section class="tablecard">
+    <div class="tablehd">
+      <h2>Roster</h2>
+      <p class="note" style="margin-top:3px" id="tableNote"></p>
+    </div>
+    <div class="scroll"><table>
+      <thead><tr>
+        <th data-sort="n">Name <span class="dir"></span></th>
+        <th data-sort="t">Focus <span class="dir"></span></th>
+        <th data-sort="x">Location <span class="dir"></span></th>
+        <th data-sort="k">Country <span class="dir"></span></th>
+        <th data-sort="d">Domain <span class="dir"></span></th>
+        <th data-sort="p">Completeness <span class="dir"></span></th>
+        <th>Profile</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div>
+    <div class="more" id="more"></div>
+  </section>
+
+  <div class="foot">
+    <p><b>Where this comes from.</b> The club's own directory listing: a name, an optional
+      one-line bio and an optional location per member. Those three free-text fields were split
+      into structured columns — city, region, country, continent, domain, role in the club, and a
+      completeness score.</p>
+    <p><b>What is inferred.</b> Country, domain and completeness are derived from the member's
+      own words, not from searching the web for anyone. Treat them as a way to sort the room, not
+      as verified fact. A <span class="flag">±</span> marks a city name that exists in several
+      countries, where the country shown is a best guess.</p>
+    <p><b>Blank means unknown.</b> 65% of the club wrote no bio and 49% gave no location. A blank
+      domain says the bio had no professional signal in it — never that the person does nothing.</p>
+  </div>
+</div>
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script>
+// Packed column order, mirroring pack() in scripts/build-aia-atlas.py:
+// name, tagline, city, region, country, continent, domain, granularity,
+// ambiguous, completeness, profile_id, role_in_club, location_raw, staff_role
+const RAW=/*__DATA__*/[];
+const esc=s=>String(s??"").replace(/[&<>"]/g,
+  c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const DATA=RAW.map(a=>({n:a[0],t:a[1],c:a[2],r:a[3],k:a[4],o:a[5],d:a[6],g:a[7],
+  a:a[8],p:a[9],i:a[10],u:a[11],x:a[12],sr:a[13]}));
+
+const $=id=>document.getElementById(id);
+const tip=$("tip");
+function showTip(e,html){tip.innerHTML=html;tip.style.opacity="1";moveTip(e);}
+function moveTip(e){const r=tip.getBoundingClientRect();
+  let x=e.clientX+14,y=e.clientY+16;
+  if(x+r.width>innerWidth-8)x=e.clientX-r.width-14;
+  if(y+r.height>innerHeight-8)y=e.clientY-r.height-14;
+  tip.style.left=Math.max(8,x)+"px";tip.style.top=Math.max(8,y)+"px";}
+function hideTip(){tip.style.opacity="0";}
+
+const state={q:"",country:"",domain:"",peers:true,bio:false,loc:false,sort:"p",dir:-1};
+const LIMIT=250;
+
+function match(m){
+  if(state.peers&&m.u!=="member")return false;
+  if(state.country&&m.k!==state.country)return false;
+  if(state.domain&&m.d!==state.domain)return false;
+  if(state.bio&&!m.t)return false;
+  if(state.loc&&!m.k)return false;
+  if(state.q){const q=state.q.toLowerCase();
+    if(!((m.n+" "+m.t+" "+m.x+" "+m.k+" "+m.d).toLowerCase().includes(q)))return false;}
+  return true;
+}
+const tally=(rows,key)=>{const m=new Map();
+  for(const r of rows){const v=key(r);if(!v)continue;m.set(v,(m.get(v)||0)+1);}
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]);};
+
+function bars(el,pairs,{colors,total,tipFn,limit=10}={}){
+  const node=$(el);
+  if(!pairs.length){node.innerHTML='<p class="empty">Nothing matches these filters.</p>';return;}
+  let list=pairs.slice(0,limit);
+  const rest=pairs.slice(limit).reduce((s,p)=>s+p[1],0);
+  if(rest)list=[...list,["Other ("+(pairs.length-limit)+")",rest]];
+  const max=Math.max(...list.map(p=>p[1]));
+  const sum=total??pairs.reduce((s,p)=>s+p[1],0);
+  node.innerHTML=list.map(([k,v],idx)=>{
+    const col=colors?colors[Math.min(idx,colors.length-1)]:"var(--accent)";
+    return `<div class="row" data-k="${encodeURIComponent(k)}" data-v="${v}">
+      <span class="lab" title="${esc(k)}">${esc(k)}</span>
+      <span class="track"><span class="fill" style="width:${(v/max*100).toFixed(1)}%;background:${col}"></span></span>
+      <span class="val tnum">${v}</span></div>`;}).join("");
+  node.querySelectorAll(".row").forEach(row=>{
+    const k=decodeURIComponent(row.dataset.k),v=+row.dataset.v;
+    const html=tipFn?tipFn(k,v,sum):`<b>${esc(k)}</b><br>${v} of ${sum} — ${(v/sum*100).toFixed(1)}%`;
+    row.addEventListener("mouseenter",e=>showTip(e,html));
+    row.addEventListener("mousemove",moveTip);
+    row.addEventListener("mouseleave",hideTip);});
+}
+const legend=(el,items)=>{$(el).innerHTML=items.map(([c,l])=>
+  `<span><i class="sw" style="background:${c}"></i>${esc(l)}</span>`).join("");};
+
+const RAMP=["var(--r1)","var(--r2)","var(--r3)","var(--r4)"];
+const PREC=[["city","Named a city"],["metro","Named a metro or county"],
+  ["region","State or province only"],["country","Country only"]];
+const BAND=[["Rich (71–100)",m=>m.p>=71],["Useful (36–70)",m=>m.p>=36&&m.p<=70],
+  ["Thin (1–35)",m=>m.p>=1&&m.p<=35],["Nothing (0)",m=>m.p===0]];
+
+function render(){
+  const rows=DATA.filter(match);
+  const n=rows.length;
+  $("count").textContent=n+" of "+DATA.length+" profiles";
+
+  const placed=rows.filter(m=>m.k).length;
+  const withBio=rows.filter(m=>m.t).length;
+  const sorted=rows.map(m=>m.p).sort((a,b)=>a-b);
+  const med=n?sorted[Math.floor(n/2)]:0;
+  const countries=new Set(rows.filter(m=>m.k).map(m=>m.k)).size;
+  $("tiles").innerHTML=[
+    ["Profiles in view",n,n===DATA.length?"the whole club":"after filters"],
+    ["Locatable",placed,n?Math.round(placed/n*100)+"% gave a place":"—"],
+    ["Wrote a bio",withBio,n?Math.round(withBio/n*100)+"% of those in view":"—"],
+    ["Countries",countries,"across "+new Set(rows.filter(m=>m.o).map(m=>m.o)).size+" continents"],
+    ["Median completeness",med+"<span style='font-size:15px;color:var(--muted)'>/100</span>",
+      med<40?"most profiles are near-empty":"a well-filled slice"],
+  ].map(([k,v,s])=>`<div class="tile"><div class="k">${k}</div>
+      <div class="v tnum">${v}</div><div class="s">${s}</div></div>`).join("");
+
+  // completeness bands — ordered, so the ordinal ramp carries the order
+  const bands=BAND.map(([lab,fn],i)=>[lab,rows.filter(fn).length,RAMP[i]]).filter(b=>b[1]);
+  bars("chCompleteness",bands.map(b=>[b[0],b[1]]),{colors:bands.map(b=>b[2]),total:n,limit:4,
+    tipFn:(k,v)=>`<b>${esc(k)}</b><br>${v} profiles — ${(v/n*100).toFixed(1)}% of this view`});
+  legend("lgCompleteness",bands.map(b=>[b[2],b[0]]));
+
+  const none=rows.filter(m=>m.g==="none"||m.g==="unresolved").length;
+  const precAll=[...PREC.map(([g,lab],i)=>[lab,rows.filter(m=>m.g===g).length,RAMP[i]]),
+                 ["Not stated",none,"var(--grid)"]].filter(p=>p[1]);
+  bars("chPrecision",precAll.map(p=>[p[0],p[1]]),{colors:precAll.map(p=>p[2]),total:n,limit:5,
+    tipFn:(k,v)=>`<b>${esc(k)}</b><br>${v} profiles — ${(v/n*100).toFixed(1)}% of this view`});
+  legend("lgPrecision",precAll.map(p=>[p[2],p[0]]));
+
+  const byCountry=tally(rows,m=>m.k);
+  $("nCountry").textContent=byCountry.length+" in view";
+  bars("chCountry",byCountry,{total:placed,limit:9,tipFn:(k,v)=>{
+    const cs=tally(rows.filter(m=>m.k===k),m=>m.c).slice(0,3).map(p=>p[0]);
+    return `<b>${esc(k)}</b><br>${v} of ${placed} locatable — ${(v/placed*100).toFixed(1)}%`+
+      (cs.length?`<br><span style="opacity:.75">Top cities: ${cs.join(", ")}</span>`:"");}});
+
+  const byDomain=tally(rows,m=>m.d);
+  const domTotal=byDomain.reduce((s,p)=>s+p[1],0);
+  $("nDomain").textContent=domTotal+" classified";
+  bars("chDomain",byDomain,{total:domTotal,limit:11,
+    tipFn:(k,v)=>`<b>${esc(k)}</b><br>${v} of ${domTotal} classified — ${(v/domTotal*100).toFixed(1)}%`});
+
+  const us=rows.filter(m=>m.k==="United States"&&m.r);
+  bars("chState",tally(us,m=>m.r),{total:us.length,limit:10,
+    tipFn:(k,v)=>`<b>${esc(k)}</b><br>${v} of ${us.length} US members — ${(v/us.length*100).toFixed(1)}%`});
+
+  const cityRows=rows.filter(m=>m.c);
+  bars("chCity",tally(cityRows,m=>m.c+(m.k&&m.k!=="United States"?", "+m.k:"")),
+    {total:cityRows.length,limit:10,
+     tipFn:(k,v)=>`<b>${esc(k)}</b><br>${v} member${v>1?"s":""} named this city`});
+
+  // roster
+  const dir=state.dir,key=state.sort;
+  const srt=[...rows].sort((a,b)=>{
+    const A=a[key],B=b[key];
+    if(typeof A==="number")return (A-B)*dir||a.n.localeCompare(b.n);
+    return String(A||"~~~").localeCompare(String(B||"~~~"))*dir||a.n.localeCompare(b.n);});
+  const shown=srt.slice(0,LIMIT);
+  $("tbody").innerHTML=shown.length?shown.map(m=>`<tr>
+    <td class="nm">${esc(m.n)}${m.u!=="member"?` <span class="badge">${esc(m.u)}</span>`:""}</td>
+    <td class="fc">${esc(m.t||m.sr)||'<span style="color:var(--muted)">—</span>'}</td>
+    <td class="lc">${esc(m.x)||'<span style="color:var(--muted)">—</span>'}${m.a?'<span class="flag" title="City name exists in several countries">±</span>':""}</td>
+    <td class="lc">${esc(m.k)||'<span style="color:var(--muted)">—</span>'}</td>
+    <td class="lc">${esc(m.d)||'<span style="color:var(--muted)">—</span>'}</td>
+    <td><span class="meter"><span class="mt"><span class="mf" style="width:${m.p}%"></span></span>
+      <span class="mv tnum">${m.p}</span></span></td>
+    <td><a href="https://community.aiadvantage.com/u/${m.i}" target="_blank" rel="noopener">Open</a></td>
+    </tr>`).join("")
+    :`<tr><td colspan="7" class="empty" style="padding:22px 12px">No profiles match these filters.</td></tr>`;
+  $("more").textContent=srt.length>LIMIT
+    ? `Showing the first ${LIMIT} of ${srt.length}. Narrow the filters or sort to see the rest.`
+    : `${srt.length} profile${srt.length===1?"":"s"} listed.`;
+  $("tableNote").textContent=state.peers
+    ? "Peers only — AI Advantage staff and founder accounts are filtered out."
+    : "Everyone, including AI Advantage staff and founder accounts.";
+  document.querySelectorAll("th[data-sort] .dir").forEach(s=>{
+    s.textContent=s.parentElement.dataset.sort===key?(dir===1?"▲":"▼"):"";});
+}
+
+// options
+const opts=(sel,vals)=>{const el=$(sel);
+  el.innerHTML=el.children[0].outerHTML+vals.map(v=>`<option>${esc(v)}</option>`).join("");};
+opts("fCountry",[...new Set(DATA.filter(m=>m.k).map(m=>m.k))].sort());
+opts("fDomain",[...new Set(DATA.filter(m=>m.d).map(m=>m.d))].sort());
+
+const bind=(id,fn)=>$(id).addEventListener("input",e=>{fn(e.target.value);render();});
+bind("q",v=>state.q=v.trim());
+bind("fCountry",v=>state.country=v);
+bind("fDomain",v=>state.domain=v);
+const toggle=(id,key)=>$(id).addEventListener("click",e=>{
+  state[key]=!state[key];e.currentTarget.setAttribute("aria-pressed",String(state[key]));render();});
+toggle("cPeers","peers");toggle("cBio","bio");toggle("cLoc","loc");
+$("cReset").addEventListener("click",()=>{
+  Object.assign(state,{q:"",country:"",domain:"",peers:true,bio:false,loc:false,sort:"p",dir:-1});
+  $("q").value="";$("fCountry").value="";$("fDomain").value="";
+  $("cPeers").setAttribute("aria-pressed","true");
+  $("cBio").setAttribute("aria-pressed","false");
+  $("cLoc").setAttribute("aria-pressed","false");render();});
+document.querySelectorAll("th[data-sort]").forEach(th=>{
+  th.tabIndex=0;
+  const go=()=>{const k=th.dataset.sort;
+    if(state.sort===k)state.dir*=-1;else{state.sort=k;state.dir=k==="p"?-1:1;}render();};
+  th.addEventListener("click",go);
+  th.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go();}});});
+
+render();
+</script>
