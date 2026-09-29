@@ -51,7 +51,7 @@ function loadProfile(id) {
   S.mode = 'reflect';
   S.together = new Set();
   S.focusDay = null;
-  if (typeof TL !== 'undefined') { TL.data = null; TL.open = {}; }
+  if (typeof TL !== 'undefined') { TL.data = null; TL.open = {}; TL.with = new Set(); TL.together = null; }
 
   document.querySelectorAll('.mode-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === 'reflect');

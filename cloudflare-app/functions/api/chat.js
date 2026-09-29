@@ -76,6 +76,20 @@ async function recordUsage(env, label, tier) {
   } catch { /* tallying must never affect a reply */ }
 }
 
+// Prompt caching for the conversation history: mark the latest user turn so the
+// next message in the same conversation reads everything before it from cache
+// (billed at a fraction of normal input). Shorter prompts than the model's
+// caching minimum are simply not cached — no error, no change in the reply.
+function withHistoryCache(messages) {
+  if (!Array.isArray(messages) || !messages.length) return messages;
+  const out = messages.slice();
+  const i = out.length - 1, m = out[i];
+  if (m && m.role === 'user' && typeof m.content === 'string' && m.content) {
+    out[i] = { role: 'user', content: [{ type: 'text', text: m.content, cache_control: { type: 'ephemeral' } }] };
+  }
+  return out;
+}
+
 export async function onRequestPost({ request, env, waitUntil }) {
   let body;
   try { body = await request.json(); } catch { body = {}; }
@@ -117,7 +131,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
 
   // ── OpenAI: non-streaming JSON (client falls back to { text }) ──
   if (useProvider === 'openai') {
-    const msgs = system ? [{ role: 'system', content: system }, ...messages] : messages;
+    const sysText = Array.isArray(system) ? system.map(b => b.text || '').join('\n\n') : system;
+    const msgs = sysText ? [{ role: 'system', content: sysText }, ...messages] : messages;
     const r = await fetch(OPENAI_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
@@ -132,8 +147,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
   // Resolve the model from the requested tier (an explicit model still wins).
   const wantModel = model || modelForTier(env, tier);
   async function callAnthropic(useModel) {
-    const payload = { model: useModel, max_tokens: max_tokens || 1500, messages, stream: true };
-    if (system) payload.system = system;
+    const payload = { model: useModel, max_tokens: max_tokens || 1500, messages: withHistoryCache(messages), stream: true };
+    if (system) payload.system = system;   // string, or blocks with cache_control from the client
     return fetch(ANTHROPIC_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },

@@ -244,7 +244,8 @@ function calcSoulUrge(name) {
 }
 
 // ─── SYSTEM PROMPT ────────────────────────────────────────────────────────────
-function buildNatalContext(profile) {
+function buildNatalContext(profile, opts) {
+  const withAnalysis = !opts || opts.analysis !== false;
   const lines = [`USER: ${profile.name}`];
   if (profile.birthDate)  lines.push(`BIRTH DATE: ${profile.birthDate}`);
   if (profile.birthTime)  lines.push(`BIRTH TIME: ${profile.birthTime}`);
@@ -267,7 +268,7 @@ function buildNatalContext(profile) {
 
   if (profile.humanDesign?.trim()) lines.push(`\nHUMAN DESIGN (provided by user):\n${profile.humanDesign.trim()}`);
   if (profile.geneKeys?.trim())    lines.push(`\nGENE KEYS HOLOGENETIC PROFILE (provided by user):\n${profile.geneKeys.trim()}`);
-  if (profile.analysis?.trim()) lines.push(`\nTECHNICAL CHART ANALYSIS (reference document):\n${profile.analysis.trim()}`);
+  if (withAnalysis && profile.analysis?.trim()) lines.push(`\nTECHNICAL CHART ANALYSIS (reference document):\n${profile.analysis.trim()}`);
   if (profile.notes?.trim()) lines.push(`\nPERSONAL DEEP PORTRAIT (pre-written psychological portrait — treat as intimate background knowledge, not text to quote directly):\n${profile.notes.trim()}`);
   return lines.join('\n');
 }
@@ -335,7 +336,9 @@ async function maybeUpdateMemory(profileId) {
 
 function buildSystem(mode, profile) {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  const ctx = buildNatalContext(profile);
+  // The long technical Analysis document rides along only where it earns its
+  // tokens (specific questions and timing); the Story portrait is always there.
+  const ctx = buildNatalContext(profile, { analysis: mode === 'question' || mode === 'transit' });
   const name = profile.name;
 
   const modes = {
@@ -379,12 +382,12 @@ function buildSystem(mode, profile) {
     ? `\n\nIMPORTANT: Respond entirely in ${langName}. Every reply must be written in that language, naturally and fluently — matching the user even if they mix in another language.`
     : '';
 
-  return `You are the personal astrological companion for ${name}. You hold intimate, precise knowledge of their natal chart — not as abstract symbols but as a living map of their psyche, potential, and path.
+  // Two system blocks for prompt caching: the first (identity, charts, portrait,
+  // rules) is identical across messages and gets cached by the API at a fraction
+  // of the input price; the second (date, sky, journal, memory, mode) changes.
+  const stable = `You are the personal astrological companion for ${name}. You hold intimate, precise knowledge of their natal chart — not as abstract symbols but as a living map of their psyche, potential, and path.
 
-Today: ${today}
-
-${ctx}${constellation}${journal}${memory}
-${transits}${upcoming}${focusDay}
+${ctx}${constellation}
 
 YOUR APPROACH:
 — Be specific to this person's chart and what you know of their placements. Never give generic horoscope statements.
@@ -392,15 +395,34 @@ YOUR APPROACH:
 — Be wise but never preachy. Challenge gently and precisely when a blind spot seems active.
 — Weave astrological insight into practical, embodied reality — not mystical abstraction.
 — Reference the conversation history you are given. ${name} should feel truly remembered.
-— If journal entries are provided above, treat them as lived context from ${name}'s own hand: notice recurring themes, connect a current question to what they wrote when it resonates, and hold intentions they set. Weave gently — never recite the journal back as a list.
+— If journal entries are provided, treat them as lived context from ${name}'s own hand: notice recurring themes, connect a current question to what they wrote when it resonates, and hold intentions they set. Weave gently — never recite the journal back as a list.
 — If a distilled memory of past conversations is provided, let it give you continuity: remember what you've explored, pick up threads, notice growth. Draw on it naturally, as a companion who remembers — never announce "according to my memory".
 — Responses: usually 2–4 paragraphs. Tight and meaningful. Do not over-explain.
 — One question per response maximum. Make it count.
-— A LIVE EPHEMERIS of the current sky is provided above — real computed positions and aspects to the natal chart. Use it for anything about "now," timing, or current energy. Never invent transit data beyond what is given; if something isn't listed, say so.
+— A LIVE EPHEMERIS of the current sky is provided below — real computed positions and aspects to the natal chart. Use it for anything about "now," timing, or current energy. Never invent transit data beyond what is given; if something isn't listed, say so.
 — If an UPCOMING TIMELINE or FOCUS DAY is given, use its dates exactly. Describe tendencies and timing, never fixed events. Retrogrades are review periods, not dangers. No fear language, no "once in a lifetime" framing.
 — Match their energy. If they are light, be light. If they are in it, go deep.
-— You are their most knowing mirror — the one who reads the map and asks the questions that matter.${langLine}
+— You are their most knowing mirror — the one who reads the map and asks the questions that matter.`;
 
-CURRENT MODE: ${modes[mode] || modes.reflect}`;
+  // Freeze the changing block for the length of a conversation (same mode, day,
+  // language and focus), so the whole history before the newest message stays
+  // cacheable. A new session, mode, focus day or calendar day refreshes it.
+  const dynKey = [S.sessionId, mode, S.focusDay?.iso || '', S.lang, today, [...(S.together || [])].sort().join(',')].join('|');
+  if (S._dyn?.key === dynKey) return [
+    { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: S._dyn.text }
+  ];
+
+  const dynamic = `Today: ${today}
+${journal}${memory}
+${transits}${upcoming}${focusDay}
+
+CURRENT MODE: ${modes[mode] || modes.reflect}${langLine}`;
+  S._dyn = { key: dynKey, text: dynamic };
+
+  return [
+    { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: dynamic }
+  ];
 }
 

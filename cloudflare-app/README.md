@@ -39,6 +39,24 @@ cloudflare-app/
 6. **Custom domains → Set up a domain →** `compass.sagemodeai.com`. Since the
    zone is now on Cloudflare, it wires up automatically.
 
+## Keeping model costs down
+
+Charts, Human Design, Gene Keys, the Timeline and its built-in day readings are
+all computed in the browser and cost nothing. Only conversations, portraits and
+the memory digest call the model.
+
+- **Prompt caching is built in.** The chart, portrait and rules go in a cached
+  system block, and the changing part (date, sky, journal, mode) is held steady
+  for the length of a conversation, so each follow-up message reads everything
+  before it from cache at a fraction of the normal input price.
+- **The Analysis document is sent only in Question and Transits modes.**
+- **Pick cheaper models per task** in Settings → Variables and secrets:
+  - `MODEL_SUMMARY` — a Haiku model (memory digest; quality barely matters)
+  - `MODEL_CHAT` — try a Haiku model; switch back to Sonnet if replies feel thin
+  - `MODEL_DEEP` — keep Sonnet or Opus (portraits and Together)
+  Use the model IDs listed at docs.claude.com (Models overview). A bad value
+  falls back to the default, so nothing breaks.
+
 ## Notes
 
 - Streaming: the browser shows Claude's reply as it's written, and long Portrait

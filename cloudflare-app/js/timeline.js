@@ -18,7 +18,7 @@ const TL_ORB = b => TL_SLOW.has(b) ? 3 : 2;               // display window
 const TL_WEIGHT = { Sun:1, Mercury:1, Venus:1, Mars:2, Jupiter:3, Saturn:4, Uranus:4, Neptune:4, Pluto:5 };
 const TL_KEY_POINTS = new Set(['Sun','Moon','ASC','MC']);
 
-const TL = { start: null, days: 30, data: null, profileId: null, open: {} };
+const TL = { start: null, days: 30, data: null, open: {}, with: new Set(), together: null };
 
 function tlSign(lon) { return AE_SIGNS[Math.floor((((lon % 360) + 360) % 360) / 30)]; }
 function tlDeg(lon) { const d = ((lon % 30) + 30) % 30; return `${Math.floor(d)}°${String(Math.floor((d % 1) * 60)).padStart(2,'0')}'`; }
@@ -97,10 +97,10 @@ function computeTimeline(profile, start, days) {
       const mvp = ((lon - prev[b] + 540) % 360) - 180;
       day.sky.push({ body: b, lon, sign: tlSign(lon), deg: tlDeg(lon), house: house(lon), retro: b !== 'Sun' && b !== 'Moon' && mv < 0 });
       if (b !== 'Sun' && b !== 'Moon' && (mv < 0) !== (mvp < 0)) {
-        day.events.push({ kind: 'station', text: `${b} stations ${mv < 0 ? 'retrograde' : 'direct'} at ${tlDeg(lon)} ${tlSign(lon)}${house(lon) ? ` (House ${house(lon)})` : ''}`, w: TL_SLOW.has(b) ? 4 : 3 });
+        day.events.push({ kind: 'station', body: b, sub: mv < 0 ? 'retrograde' : 'direct', house: house(lon), text: `${b} stations ${mv < 0 ? 'retrograde' : 'direct'} at ${tlDeg(lon)} ${tlSign(lon)}${house(lon) ? ` (House ${house(lon)})` : ''}`, w: TL_SLOW.has(b) ? 4 : 3 });
       }
       if (b !== 'Moon' && tlSign(prev[b]) !== tlSign(lon)) {
-        day.events.push({ kind: 'ingress', text: `${b} enters ${tlSign(lon)}${house(lon) ? ` (House ${house(lon)})` : ''}`, w: TL_SLOW.has(b) ? 3 : 1 });
+        day.events.push({ kind: 'ingress', body: b, sub: tlSign(lon), house: house(lon), text: `${b} enters ${tlSign(lon)}${house(lon) ? ` (House ${house(lon)})` : ''}`, w: TL_SLOW.has(b) ? 3 : 1 });
       }
     }
 
@@ -132,7 +132,7 @@ function computeTimeline(profile, start, days) {
     // Lunations falling on this calendar day
     for (const l of lunas) {
       if (tlIso(l.date) === day.iso) {
-        day.events.push({ kind: 'lunation', text: `${l.kind} at ${tlDeg(l.lon)} ${tlSign(l.lon)}${house(l.lon) ? ` (House ${house(l.lon)})` : ''}`, w: 3 });
+        day.events.push({ kind: 'lunation', sub: l.kind, house: house(l.lon), text: `${l.kind} at ${tlDeg(l.lon)} ${tlSign(l.lon)}${house(l.lon) ? ` (House ${house(l.lon)})` : ''}`, w: 3 });
       }
     }
     day.events.forEach(e => day.score += e.w);
@@ -164,6 +164,8 @@ function computeTimeline(profile, start, days) {
   }
   const max = Math.max(...out.map(d => d.score)), min = Math.min(...out.map(d => d.score));
   out.forEach(d => d.heat = max > min ? (d.score - min) / (max - min) : 0.5);
+  out.natal = natal;
+  out.skies = skies;
   return out;
 }
 
@@ -216,13 +218,145 @@ function buildUpcomingContext(profile, days) {
   } catch { return ''; }
 }
 
+// ─── BUILT-IN READINGS (no model call) ───────────────────────────────────────
+const TL_TP = { Sun:'attention and vitality', Mercury:'thinking, talks and messages', Venus:'connection, pleasure and value',
+  Mars:'drive and heat', Jupiter:'growth and opportunity', Saturn:'structure, limits and commitment',
+  Uranus:'change and surprise', Neptune:'sensitivity, inspiration and some haze', Pluto:'deep pressure and transformation' };
+const TL_NP = { Sun:'your core identity', Moon:'your emotions and home life', Mercury:'your mind and communication',
+  Venus:'your relationships and values', Mars:'your drive and assertiveness', Jupiter:'your growth and optimism',
+  Saturn:'your responsibilities', Uranus:'your need for freedom', Neptune:'your ideals', Pluto:'your sense of power',
+  ASC:'how you show up', MC:'your career and public direction' };
+const TL_AV = { conjunction:'merges with and intensifies', opposition:'faces off with, bringing awareness through others, around',
+  square:'presses on, asking for action around', trine:'flows easily into', sextile:'opens a door for, with a small step needed, around' };
+const TL_HOUSE = { 1:'self and presence', 2:'money and resources', 3:'communication and local ties', 4:'home and family',
+  5:'creativity and joy', 6:'work routines and health', 7:'partnerships and clients', 8:'shared resources and depth',
+  9:'learning, travel and teaching', 10:'career and reputation', 11:'networks and future plans', 12:'rest, retreat and inner work' };
+
+function tlReadAspect(a) {
+  const where = a.th ? `, working through ${TL_HOUSE[a.th]}` : '';
+  return `${a.t} brings ${TL_TP[a.t]} that ${TL_AV[a.asp]} ${TL_NP[a.n] || a.n}${where}.`;
+}
+function tlReadEvent(e) {
+  const h = e.house ? TL_HOUSE[e.house] : null;
+  if (e.kind === 'station') return e.sub === 'retrograde'
+    ? `${e.body} turns retrograde${h ? ` in your house of ${h}` : ''}: a stretch for review, not new launches, in this area.`
+    : `${e.body} turns direct${h ? ` in your house of ${h}` : ''}: what was on hold can move forward again.`;
+  if (e.kind === 'lunation') return e.sub === 'New Moon'
+    ? `New Moon${h ? ` in your house of ${h}` : ''}: a natural starting point, good for setting an intention.`
+    : `Full Moon${h ? ` in your house of ${h}` : ''}: things come to a head or become visible; good for completing.`;
+  if (e.kind === 'ingress' && TL_SLOW.has(e.body)) return `${e.body} enters ${e.sub}${h ? `, your house of ${h}` : ''}: a longer chapter begins here.`;
+  return null;
+}
+function tlReadings(day) {
+  const out = [];
+  day.events.forEach(e => { const r = tlReadEvent(e); if (r) out.push(r); });
+  const exact = day.aspects.filter(a => a.exact).slice(0, 3);
+  const pool = exact.length ? exact : day.aspects.filter(a => !a.background).slice(0, 1);
+  pool.forEach(a => out.push((a.exact ? 'Peak today: ' : '') + tlReadAspect(a)));
+  return out.slice(0, 4);
+}
+
+// ─── TOGETHER (several charts on one timeline) ───────────────────────────────
+const TL_SOFT_CONJ = new Set(['Sun','Venus','Jupiter']);
+const TL_HARD_CONJ = new Set(['Mars','Saturn','Pluto']);
+function tlTone(body, asp) {
+  if (asp === 'trine' || asp === 'sextile') return 1;
+  if (asp === 'square' || asp === 'opposition') return -1;
+  return TL_SOFT_CONJ.has(body) ? 1 : TL_HARD_CONJ.has(body) ? -1 : 0;   // conjunctions
+}
+
+// Aspects between two natal charts (static)
+function tlSynastry(a, b) {
+  const links = [];
+  for (const p of a.points) for (const q of b.points) {
+    const sep = tlSep(p.lon, q.lon);
+    for (const asp of TL_ASPECTS) {
+      const orb = Math.abs(sep - asp.angle);
+      if (orb <= 3) links.push({ p: p.name, q: q.name, pl: p.lon, ql: q.lon, asp: asp.name, orb,
+        tone: asp.name === 'trine' || asp.name === 'sextile' ? 1 : asp.name === 'square' || asp.name === 'opposition' ? -1 : 0 });
+    }
+  }
+  return links.sort((x, y) => x.orb - y.orb);
+}
+
+// Human Design channels that exist only when the charts are together
+function tlCompositeChannels(people) {
+  const union = new Set(people.flatMap(p => [...p.natal.gates]));
+  return HD_CHANNELS.filter(([a, b]) => union.has(a) && union.has(b) && !people.some(p => p.natal.gates.has(a) && p.natal.gates.has(b)))
+    .map(([a, b]) => ({ channel: `${a}-${b}`, name: HD_CHANNEL_NAMES[`${a}-${b}`] || '',
+      who: people.filter(p => p.natal.gates.has(a) || p.natal.gates.has(b)).map(p => p.name) }));
+}
+
+function computeTogether(people) {
+  const pairs = [];
+  for (let i = 0; i < people.length; i++) for (let j = i + 1; j < people.length; j++)
+    pairs.push({ A: people[i], B: people[j], links: tlSynastry(people[i].natal, people[j].natal) });
+  const composite = tlCompositeChannels(people);
+  const days = people[0].tl.map((_, i) => {
+    const sky = people[0].tl.skies[i + 1];
+    const shared = [], relinks = [];
+    let pos = 0, neg = 0;
+    for (const b of TL_BODIES) {
+      const hits = [];
+      people.forEach(p => {
+        // Slow planets sit near the same points for weeks, so they only count on their closest days
+        const lim = TL_SLOW.has(b) ? 0.3 : 1.2;
+        p.tl[i].aspects.filter(a => a.t === b && (a.exact || a.orb <= lim)).forEach(a => hits.push({ who: p.name, ...a }));
+      });
+      const whoSet = new Set(hits.map(h => h.who));
+      if (whoSet.size >= 2) {
+        shared.push({ body: b, hits });
+        hits.forEach(h => { const t = tlTone(b, h.asp), w = TL_WEIGHT[b] * (h.exact ? 2 : 1); if (t > 0) pos += w; if (t < 0) neg += w; });
+      }
+      // Transit touching both ends of an existing link between two charts
+      for (const pr of pairs) for (const L of pr.links.slice(0, 40)) {
+        const lim = TL_SLOW.has(b) ? 0.3 : 1;
+        const hitP = TL_ASPECTS.find(x => Math.abs(tlSep(sky[b], L.pl) - x.angle) <= lim);
+        const hitQ = TL_ASPECTS.find(x => Math.abs(tlSep(sky[b], L.ql) - x.angle) <= lim);
+        if (hitP && hitQ) {
+          relinks.push({ body: b, A: pr.A.name, B: pr.B.name, link: L, tp: hitP.name, tq: hitQ.name });
+          const t = L.tone + tlTone(b, hitP.name) + tlTone(b, hitQ.name), w = TL_WEIGHT[b];
+          if (t > 0) pos += w; if (t < 0) neg += w;
+        }
+      }
+    }
+    let tone = 'quiet';
+    if (pos + neg >= 2) tone = pos && neg && Math.min(pos, neg) / Math.max(pos, neg) > 0.4 ? 'mixed' : pos > neg ? 'harmony' : 'friction';
+    return { shared, relinks: relinks.slice(0, 6), tone, pos, neg };
+  });
+  return { pairs, composite, days };
+}
+
+function tlTogetherDayText(i) {
+  const T = TL.together, day = T.days[i], date = TL.data[i].date;
+  const when = date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const lines = [`FOCUS DAY (together): ${when} — overall tone: ${day.tone}`];
+  T.people.forEach(p => {
+    const d = p.tl[i];
+    const top = d.aspects.filter(a => !a.background).slice(0, 6).map(a => '    ' + tlAspectText(a));
+    lines.push(`${p.name}:` + (d.events.length ? `\n    Events: ${d.events.map(e => e.text).join('; ')}` : '') + (top.length ? '\n' + top.join('\n') : '\n    (no close aspects)'));
+  });
+  if (day.shared.length) lines.push('Shared activations (one transit touching several charts): ' +
+    day.shared.map(s => `${s.body} → ` + s.hits.map(h => `${h.who}'s ${h.n} (${h.asp}, ${h.orb.toFixed(1)}°)`).join(', ')).join('; '));
+  if (day.relinks.length) lines.push('Links between the charts reactivated today: ' +
+    day.relinks.map(r => `${r.body} touches ${r.A}'s ${r.link.p} ${r.link.asp} ${r.B}'s ${r.link.q}`).join('; '));
+  if (T.composite.length) lines.push('Human Design channels formed only together: ' + T.composite.map(c => `${c.channel} ${c.name}`).join(', '));
+  return lines.join('\n');
+}
+
 // ─── UI ──────────────────────────────────────────────────────────────────────
+function tlLevel(h) { return h > 0.75 ? 4 : h > 0.5 ? 3 : h > 0.28 ? 2 : 1; }
+const TL_TONE_LABEL = { harmony: 'Harmony', friction: 'Friction', mixed: 'Mixed', quiet: 'Quiet' };
+
 function renderTimeline(force) {
   const pane = document.getElementById('timelineContent');
   const ctrl = document.getElementById('timelineControls');
   if (!pane || !ctrl) return;
   const profile = getActiveProfile();
   if (!TL.start) TL.start = new Date();
+  if (!TL.with) TL.with = new Set();
+  const others = getProfiles().filter(p => p.id !== profile?.id && p.birthDate);
+  [...TL.with].forEach(id => { if (!others.some(o => o.id === id)) TL.with.delete(id); });
 
   ctrl.innerHTML = `
     <label class="tl-ctl">From <input type="date" id="tlStart" value="${tlIso(TL.start)}" onchange="tlSetStart(this.value)"></label>
@@ -231,7 +365,9 @@ function renderTimeline(force) {
         ${[7, 14, 30, 60, 90].map(n => `<option value="${n}" ${n === TL.days ? 'selected' : ''}>${n} days</option>`).join('')}
       </select>
     </label>
-    <button class="btn-sm" onclick="tlSetStart('${tlIso(new Date())}')">Today</button>`;
+    <button class="btn-sm" onclick="tlSetStart('${tlIso(new Date())}')">Today</button>
+    ${others.length ? `<div class="tl-with"><span class="tl-ctl">Together with</span>${others.map(o =>
+      `<button class="starter${TL.with.has(o.id) ? ' tg-on' : ''}" onclick="tlToggleWith('${o.id}')">${o.emoji || '✦'} ${esc(o.name)}</button>`).join('')}</div>` : ''}`;
 
   if (!profile?.birthDate) {
     pane.innerHTML = `<p class="tl-empty">Add your birth date (and ideally time and place) in Edit chart to see your timeline.</p>`;
@@ -241,23 +377,58 @@ function renderTimeline(force) {
     pane.innerHTML = `<p class="tl-empty">The calculation engine could not load. Check your connection and reopen this tab.</p>`;
     return;
   }
-  const cacheKey = `${profile.id}|${tlIso(TL.start)}|${TL.days}|${profile.birthDate}|${profile.birthTime}|${profile.lat}`;
+  const withIds = [...TL.with].sort();
+  const cacheKey = `${profile.id}|${tlIso(TL.start)}|${TL.days}|${profile.birthDate}|${profile.birthTime}|${profile.lat}|${withIds.join(',')}`;
   if (force || !TL.data || TL.cacheKey !== cacheKey) {
-    pane.innerHTML = `<p class="tl-empty">Calculating…</p>`;
-    try { TL.data = computeTimeline(profile, TL.start, TL.days); TL.cacheKey = cacheKey; }
-    catch (e) { pane.innerHTML = `<p class="tl-empty">Could not calculate the timeline.</p>`; return; }
+    try {
+      TL.data = computeTimeline(profile, TL.start, TL.days);
+      TL.together = null;
+      if (withIds.length) {
+        const people = [{ name: profile.name, natal: TL.data.natal, tl: TL.data }];
+        for (const id of withIds) {
+          const o = others.find(x => x.id === id);
+          const tl = computeTimeline(o, TL.start, TL.days);
+          people.push({ name: o.name, natal: tl.natal, tl });
+        }
+        TL.together = { people, ...computeTogether(people) };
+      }
+      TL.cacheKey = cacheKey;
+    } catch (e) { pane.innerHTML = `<p class="tl-empty">Could not calculate the timeline.</p>`; return; }
   }
   const noHouses = !profile.birthTime || profile.lat == null;
+  const fmtShort = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-  const strip = `<div class="tl-strip" role="list" aria-label="Intensity by day">` + TL.data.map((d, i) => {
-    const lvl = d.heat > 0.75 ? 4 : d.heat > 0.5 ? 3 : d.heat > 0.28 ? 2 : 1;
-    const label = d.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    return `<button class="tl-bar lvl${lvl}" role="listitem" title="${label}" style="height:${Math.round(18 + d.heat * 42)}px" onclick="tlJump(${i})"></button>`;
-  }).join('') + `</div>
-    <div class="tl-strip-legend"><span>${TL.data[0].date.toLocaleDateString('en-US', { month:'short', day:'numeric' })}</span><span>Taller = more activity (exact aspects, stations, lunations)</span><span>${TL.data[TL.data.length-1].date.toLocaleDateString('en-US', { month:'short', day:'numeric' })}</span></div>`;
+  let strip;
+  if (TL.together) {
+    const T = TL.together;
+    const row = (p) => `<div class="tl-row"><span class="tl-row-name">${esc(p.name)}</span><div class="tl-strip small">` +
+      p.tl.map((d, i) => `<button class="tl-bar lvl${tlLevel(d.heat)}" style="height:${Math.round(6 + d.heat * 22)}px" title="${esc(p.name)} · ${fmtShort(d.date)}" onclick="tlJump(${i})"></button>`).join('') + `</div></div>`;
+    strip = `<div class="tl-rows">${T.people.map(row).join('')}
+      <div class="tl-row"><span class="tl-row-name">Together</span><div class="tl-tones">` +
+      T.days.map((d, i) => `<button class="tl-tone t-${d.tone}" title="${fmtShort(TL.data[i].date)} · ${TL_TONE_LABEL[d.tone]}" onclick="tlJump(${i})"></button>`).join('') +
+      `</div></div></div>
+      <div class="tl-strip-legend"><span>${fmtShort(TL.data[0].date)}</span><span class="tl-key"><i class="t-harmony"></i>Harmony <i class="t-friction"></i>Friction <i class="t-mixed"></i>Mixed <i class="t-quiet"></i>Quiet</span><span>${fmtShort(TL.data[TL.data.length - 1].date)}</span></div>
+      ${tlTogetherHeader(T)}`;
+  } else {
+    strip = `<div class="tl-strip" role="list" aria-label="Intensity by day">` + TL.data.map((d, i) =>
+      `<button class="tl-bar lvl${tlLevel(d.heat)}" role="listitem" title="${fmtShort(d.date)}" style="height:${Math.round(18 + d.heat * 42)}px" onclick="tlJump(${i})"></button>`).join('') +
+      `</div><div class="tl-strip-legend"><span>${fmtShort(TL.data[0].date)}</span><span>Taller = more activity (exact aspects, stations, lunations)</span><span>${fmtShort(TL.data[TL.data.length - 1].date)}</span></div>`;
+  }
 
   const cards = TL.data.map((d, i) => tlCard(d, i)).join('');
   pane.innerHTML = strip + (noHouses ? `<p class="tl-note">No birth time or place saved, so houses and Ascendant/MC aspects are not shown.</p>` : '') + cards;
+}
+
+function tlTogetherHeader(T) {
+  const pairs = T.pairs.map(pr => {
+    const top = pr.links.filter(l => l.orb <= 2).slice(0, 6);
+    return `<div class="tl-syn"><b>${esc(pr.A.name)} × ${esc(pr.B.name)}</b> ` + (top.length
+      ? top.map(l => `<span class="tl-link ${l.tone > 0 ? 't-harmony' : l.tone < 0 ? 't-friction' : 't-mixed'}">${pr.A.name}'s ${l.p} ${l.asp} ${pr.B.name}'s ${l.q} (${l.orb.toFixed(1)}°)</span>`).join('')
+      : '<span class="tl-link">no tight links</span>') + `</div>`;
+  }).join('');
+  const comp = T.composite.length
+    ? `<div class="tl-hd">HD channels formed only together · ${T.composite.map(c => `${c.channel} ${c.name}`).join(' · ')}</div>` : '';
+  return `<div class="tl-card tl-together-head"><div class="tl-date" style="margin-bottom:6px;">How your charts connect</div>${pairs}${comp}</div>`;
 }
 
 function tlCard(d, i) {
@@ -265,11 +436,13 @@ function tlCard(d, i) {
   const isToday = d.iso === tlIso(new Date());
   const main = d.aspects.filter(a => !a.background);
   const bg = d.aspects.filter(a => a.background);
-  const lvl = d.heat > 0.75 ? 4 : d.heat > 0.5 ? 3 : d.heat > 0.28 ? 2 : 1;
   const open = TL.open[d.iso];
+  const tday = TL.together?.days[i];
 
   const events = d.events.length
     ? `<div class="tl-events">${d.events.map(e => `<span class="tl-ev tl-ev-${e.kind}">${esc(e.text)}</span>`).join('')}</div>` : '';
+  const readings = tlReadings(d);
+  const readHtml = readings.length ? `<div class="tl-read">${readings.map(r => `<p>${esc(r)}</p>`).join('')}</div>` : '';
 
   const aspRow = a => `
     <div class="tl-asp ${a.exact ? 'exact' : ''}">
@@ -284,6 +457,13 @@ function tlCard(d, i) {
   const bgHtml = bg.length ? `<div class="tl-bg">Background: ${bg.map(a => `${a.t} ${a.asp} ${a.n} (${a.orb.toFixed(1)}°)`).join(' · ')}</div>` : '';
   const hd = d.hd.length ? `<div class="tl-hd">HD · ${d.hd.map(h => `${h.body} ${h.gate}.${h.line} → ${h.channel}${h.name ? ' ' + h.name : ''}`).join(' · ')}</div>` : '';
 
+  let together = '';
+  if (tday) {
+    const sh = tday.shared.map(s => `<div class="tl-tg-row">${TL_GLYPH[s.body]} ${s.body} touches ${s.hits.map(h => `${esc(h.who)}'s ${h.n} <em>(${h.asp}${h.exact ? ', exact' : ''})</em>`).join(' and ')}</div>`).join('');
+    const rl = tday.relinks.map(r => `<div class="tl-tg-row">${TL_GLYPH[r.body]} ${r.body} lights up ${esc(r.A)}'s ${r.link.p} ${r.link.asp} ${esc(r.B)}'s ${r.link.q}</div>`).join('');
+    together = `<div class="tl-tg"><span class="tl-tone-badge t-${tday.tone}">${TL_TONE_LABEL[tday.tone]}</span>${sh || rl ? sh + rl : '<div class="tl-tg-row tl-quiet">No transit touches both charts closely today.</div>'}</div>`;
+  }
+
   const sky = `
     <div class="tl-sky ${open ? 'open' : ''}">
       ${d.sky.map(s => `<div class="tl-sky-row"><span class="tl-g">${TL_GLYPH[s.body]}</span><span>${s.body}</span><span>${s.deg} ${s.sign}${s.retro ? ' ℞' : ''}</span><span>${s.house ? 'H' + s.house : ''}</span></div>`).join('')}
@@ -292,17 +472,19 @@ function tlCard(d, i) {
   return `
     <div class="tl-card${isToday ? ' today' : ''}" id="tl-day-${i}">
       <div class="tl-head">
-        <span class="tl-dot lvl${lvl}"></span>
+        <span class="tl-dot lvl${tlLevel(d.heat)}"></span>
         <span class="tl-date">${label}${isToday ? ' · today' : ''}</span>
         <span class="tl-num" title="Personal Year · Personal Month">PY ${d.py} · PM ${d.pm}</span>
       </div>
       ${events}
+      ${readHtml}
+      ${together}
       <div class="tl-asps">${aspects}</div>
       ${bgHtml}
       ${hd}
       <div class="tl-actions">
         <button class="btn-sm" onclick="tlToggleSky('${d.iso}')">${open ? 'Hide sky' : 'Show sky'}</button>
-        <button class="btn-sm tl-ask" onclick="tlAsk(${i})">✦ Ask about this day</button>
+        <button class="btn-sm tl-ask" onclick="tlAsk(${i})">✦ ${TL.together ? 'Ask about this day together' : 'Ask about this day'}</button>
       </div>
       ${sky}
     </div>`;
@@ -311,18 +493,21 @@ function tlCard(d, i) {
 function tlSetStart(v) { const [y, m, d] = v.split('-').map(Number); if (!y) return; TL.start = new Date(y, m - 1, d, 12); renderTimeline(); }
 function tlSetDays(v) { TL.days = +v || 30; renderTimeline(); }
 function tlToggleSky(iso) { TL.open[iso] = !TL.open[iso]; renderTimeline(); }
+function tlToggleWith(id) { TL.with.has(id) ? TL.with.delete(id) : TL.with.add(id); renderTimeline(); }
 function tlJump(i) { const el = document.getElementById('tl-day-' + i); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 
 function tlAsk(i) {
   const d = TL.data?.[i];
   if (!d) return;
-  S.focusDay = { iso: d.iso, text: tlDayText(d) };
-  // Switch to the conversation in Transits mode and send the question
-  const tbtn = document.querySelector('.mode-btn[data-mode="transit"]');
-  if (tbtn) setMode(tbtn);
+  const together = !!TL.together;
+  S.focusDay = { iso: d.iso, text: together ? tlTogetherDayText(i) : tlDayText(d) };
+  const mode = together ? 'together' : 'transit';
+  if (together) S.together = new Set(TL.with);
+  const btn = document.querySelector(`.mode-btn[data-mode="${mode}"]`);
+  if (btn) setMode(btn);
   switchTab('compass', document.querySelector('.tab[data-tab="compass"]'));
   const when = d.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const box = document.getElementById('inputBox');
-  box.value = `What does ${when} hold for me?`;
+  box.value = together ? `What does ${when} hold for us?` : `What does ${when} hold for me?`;
   send();
 }
