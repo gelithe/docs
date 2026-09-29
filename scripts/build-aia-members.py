@@ -25,6 +25,12 @@ JSON  = os.path.join(ROOT, "data", "ai-advantage-members.json")
 CARD  = os.path.join(ROOT, "content", "ai-advantage-members.md")
 URLF  = os.path.join(ROOT, "data", "dashboard-url.txt")
 
+# Where the data files this card links to are browsable. Override when the card is
+# mirrored into another repo:  AIA_REPO=owner/name python3 scripts/build-aia-members.py
+REPO   = os.environ.get("AIA_REPO", "gelithe/docs")
+BRANCH = os.environ.get("AIA_BRANCH", "main")
+BLOB   = f"https://github.com/{REPO}/blob/{BRANCH}"
+
 FOUNDERS = {"859db9d2", "f01f77bb"}
 # Staff whose profile name carries no `| AIA Team` suffix but whose tagline is a club role.
 EXTRA_STAFF = {"cda4854c", "1b654a1d", "195f12c6"}
@@ -139,9 +145,9 @@ def write_card(rows):
     w("| --- | --- |")
     if dash:
         w(f"| [Dashboard]({dash}) | Charts + searchable, filterable table |")
-    w("| [`data/ai-advantage-members.csv`](https://github.com/gelithe/docs/blob/main/data/ai-advantage-members.csv) | The database — 21 columns, one row per member |")
-    w("| [`data/ai-advantage-members.json`](https://github.com/gelithe/docs/blob/main/data/ai-advantage-members.json) | Same rows, for any tool that wants JSON |")
-    w("| [`data/SCHEMA.md`](https://github.com/gelithe/docs/blob/main/data/SCHEMA.md) | Data dictionary: every column, and how it was derived |")
+    w(f"| [`data/ai-advantage-members.csv`]({BLOB}/data/ai-advantage-members.csv) | The database — 21 columns, one row per member |")
+    w(f"| [`data/ai-advantage-members.json`]({BLOB}/data/ai-advantage-members.json) | Same rows, for any tool that wants JSON |")
+    w(f"| [`data/SCHEMA.md`]({BLOB}/data/SCHEMA.md) | Data dictionary: every column, and how it was derived |")
     w("| This card | The readable summary and the full roster |")
     w("")
 
