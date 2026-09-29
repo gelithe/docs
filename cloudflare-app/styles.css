@@ -669,3 +669,50 @@ textarea.input-box::placeholder { color: var(--text-muted); }
   .sb-lang-row { display: flex !important; }
 }
 .sb-lang-row { display: none; }
+
+/* ─── TIMELINE ──────────────────────────────────────────────────────────── */
+.tl-wrap { flex: 1; overflow-y: auto; padding: 18px 26px 40px; }
+.tl-wrap::-webkit-scrollbar { width: 4px; }
+.tl-wrap::-webkit-scrollbar-thumb { background: var(--border); }
+.tl-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.tl-ctl { font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.tl-ctl input, .tl-ctl select { font: inherit; font-size: 0.8rem; text-transform: none; letter-spacing: 0; color: var(--text); background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; }
+.tl-empty, .tl-note { font-size: 0.8rem; color: var(--text-muted); padding: 10px 0; }
+.tl-note { font-style: italic; padding: 0 0 10px; }
+.tl-strip { display: flex; align-items: flex-end; gap: 2px; height: 64px; padding: 0 2px; }
+.tl-bar { flex: 1; min-width: 3px; border: 0; border-radius: 3px 3px 0 0; cursor: pointer; background: var(--gold-light); opacity: 0.35; padding: 0; }
+.tl-bar.lvl2 { opacity: 0.55; } .tl-bar.lvl3 { opacity: 0.8; } .tl-bar.lvl4 { opacity: 1; background: var(--gold); }
+.tl-bar:hover, .tl-bar:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.tl-strip-legend { display: flex; justify-content: space-between; gap: 8px; font-size: 0.64rem; color: var(--text-muted); margin: 5px 0 16px; }
+.tl-strip-legend span:nth-child(2) { text-align: center; }
+.tl-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 10px; box-shadow: var(--shadow); scroll-margin-top: 10px; }
+.tl-card.today { border-color: var(--border-active); }
+.tl-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.tl-date { font-family: 'Cinzel', serif; font-size: 0.86rem; color: var(--text-bright); flex: 1; }
+.tl-num { font-size: 0.66rem; color: var(--text-muted); letter-spacing: 0.04em; }
+.tl-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold-light); opacity: 0.35; flex-shrink: 0; }
+.tl-dot.lvl2 { opacity: 0.55; } .tl-dot.lvl3 { opacity: 0.8; } .tl-dot.lvl4 { opacity: 1; background: var(--gold); }
+.tl-events { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 8px; }
+.tl-ev { font-size: 0.7rem; padding: 3px 9px; border-radius: 12px; border: 1px solid var(--border-active); color: var(--gold); }
+.tl-ev-ingress { border-color: var(--border); color: var(--text-muted); }
+.tl-asps { display: flex; flex-direction: column; gap: 3px; }
+.tl-asp { display: grid; grid-template-columns: 20px 16px 22px 1fr auto; align-items: baseline; gap: 4px; font-size: 0.76rem; color: var(--text); }
+.tl-asp.exact { color: var(--text-bright); }
+.tl-asp.exact .tl-orb b { color: var(--gold); }
+.tl-asp em { font-style: normal; color: var(--text-muted); font-size: 0.68rem; }
+.tl-g { color: var(--gold); text-align: center; font-size: 0.8rem; }
+.tl-sym { color: var(--text-muted); text-align: center; }
+.tl-orb { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
+.tl-quiet, .tl-bg, .tl-hd { font-size: 0.7rem; color: var(--text-muted); margin-top: 5px; line-height: 1.5; }
+.tl-hd { color: var(--purple); }
+.tl-actions { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
+.tl-ask { color: var(--gold); border-color: var(--border-active); }
+.tl-sky { display: none; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 6px; }
+.tl-sky.open { display: block; }
+.tl-sky-row { display: grid; grid-template-columns: 20px 70px 1fr 34px; gap: 6px; font-size: 0.72rem; color: var(--text); padding: 2px 0; }
+.tl-sky-row span:last-child { color: var(--text-muted); text-align: right; }
+@media (max-width: 680px) {
+  .tl-wrap { padding: 14px 16px 36px; }
+  .tl-strip-legend span:nth-child(2) { display: none; }
+  .tl-asp { grid-template-columns: 18px 14px 20px 1fr auto; font-size: 0.74rem; }
+}

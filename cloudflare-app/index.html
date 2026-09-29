@@ -18,7 +18,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:ital,wght@0,300;0,400;0,700;1,300;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=13">
+<link rel="stylesheet" href="styles.css?v=14">
 </head>
 <body>
 
@@ -119,6 +119,7 @@
   <div class="main">
     <div class="tabs">
       <div class="tab active" data-tab="compass"  onclick="switchTab('compass',  this)">Compass</div>
+      <div class="tab"        data-tab="timeline" onclick="switchTab('timeline', this)">Timeline</div>
       <div class="tab"        data-tab="journal"  onclick="switchTab('journal',  this)">Journal</div>
       <div class="tab"        data-tab="book"     onclick="switchTab('book',     this)">The Book</div>
       <div class="tab"        data-tab="portrait" onclick="switchTab('portrait', this)">Portrait</div>
@@ -141,6 +142,14 @@
             onkeydown="onKey(event)" oninput="autoGrow(this)"></textarea>
           <button class="send-btn" id="sendBtn" onclick="send()">→</button>
         </div>
+      </div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="tab-pane" id="pane-timeline">
+      <div class="tl-wrap">
+        <div class="tl-controls" id="timelineControls"></div>
+        <div id="timelineContent"></div>
       </div>
     </div>
 
@@ -185,8 +194,9 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2/astronomy.browser.min.js"></script>
-<script src="js/core.js?v=13"></script>
-<script src="js/engine.js?v=13"></script>
-<script src="js/app.js?v=13"></script>
+<script src="js/core.js?v=14"></script>
+<script src="js/engine.js?v=14"></script>
+<script src="js/timeline.js?v=14"></script>
+<script src="js/app.js?v=14"></script>
 </body>
 </html>
