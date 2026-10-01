@@ -18,7 +18,7 @@ const TL_ORB = b => TL_SLOW.has(b) ? 3 : 2;               // display window
 const TL_WEIGHT = { Sun:1, Mercury:1, Venus:1, Mars:2, Jupiter:3, Saturn:4, Uranus:4, Neptune:4, Pluto:5 };
 const TL_KEY_POINTS = new Set(['Sun','Moon','ASC','MC']);
 
-const TL = { start: null, days: 30, data: null, open: {}, with: new Set(), together: null };
+const TL = { start: null, days: 30, data: null, open: {}, why: {}, detail: false, with: new Set(), together: null };
 
 function tlSign(lon) { return AE_SIGNS[Math.floor((((lon % 360) + 360) % 360) / 30)]; }
 function tlDeg(lon) { const d = ((lon % 30) + 30) % 30; return `${Math.floor(d)}°${String(Math.floor((d % 1) * 60)).padStart(2,'0')}'`; }
@@ -228,9 +228,11 @@ const TL_NP = { Sun:'your core identity', Moon:'your emotions and home life', Me
   ASC:'how you show up', MC:'your career and public direction' };
 const TL_AV = { conjunction:'merges with and intensifies', opposition:'faces off with, bringing awareness through others, around',
   square:'presses on, asking for action around', trine:'flows easily into', sextile:'opens a door for, with a small step needed, around' };
-const TL_HOUSE = { 1:'self and presence', 2:'money and resources', 3:'communication and local ties', 4:'home and family',
-  5:'creativity and joy', 6:'work routines and health', 7:'partnerships and clients', 8:'shared resources and depth',
-  9:'learning, travel and teaching', 10:'career and reputation', 11:'networks and future plans', 12:'rest, retreat and inner work' };
+const TL_HOUSE = { 1:'self and presence', 2:'money and resources', 3:'communication, siblings and neighbours', 4:'home and family',
+  5:'children, play and creativity', 6:'work routines and health', 7:'your partner and close partnerships', 8:'shared resources and intimacy',
+  9:'learning, travel and teaching', 10:'career and reputation', 11:'friends, networks and future plans', 12:'rest, retreat and inner work' };
+// Houses that carry personal life; a transit falling here also names that area in the day's plain summary
+const TL_LIFE_HOUSES = { 3:'siblings and neighbours', 4:'home and family', 5:'children and play', 7:'your partner', 11:'friends' };
 
 function tlReadAspect(a) {
   const where = a.th ? `, working through ${TL_HOUSE[a.th]}` : '';
@@ -344,6 +346,86 @@ function tlTogetherDayText(i) {
   return lines.join('\n');
 }
 
+
+// ─── FOCUS (plain daily instruction) ─────────────────────────────────────────
+const TL_POINT_AREA = { Sun:'identity and visibility', Moon:'home and family', Mercury:'ideas and communication',
+  Venus:'relationships and money', Mars:'drive and initiative', Jupiter:'growth and opportunities', Saturn:'structure and commitments',
+  Uranus:'change and freedom', Neptune:'inspiration and ideals', Pluto:'power and depth', ASC:'visibility', MC:'career and reputation' };
+const TL_MODE = { act:'Act', speak:'Speak', build:'Build', review:'Review', decide:'Decide', rest:'Rest', close:'Close' };
+const TL_MODE_LINE = {
+  act:    a => `Good day to move on ${a}.`,
+  speak:  a => `Good day to talk, write or reach out about ${a}.`,
+  build:  a => `Quiet, steady work on ${a}.`,
+  review: a => `Revise and reconnect around ${a}. Don't launch.`,
+  decide: a => `Good day to commit on ${a}, after one night's sleep.`,
+  close:  a => `Finish and mark what is ending around ${a}.`,
+  rest:   a => `Lower the pace. Give ${a} some space.`
+};
+const TL_BASE_MODE = { Sun:'act', Mercury:'speak', Venus:'speak', Mars:'act', Jupiter:'act', Saturn:'build', Uranus:'act', Neptune:'rest', Pluto:'build' };
+const TL_CENTER_PLAIN = { Head:'questions and inspiration', Ajna:'clear thinking', Throat:'speaking and acting', G:'direction', Heart:'willpower',
+  Spleen:'instinct', 'Solar Plexus':'emotions', Sacral:'energy', Root:'drive' };
+
+function tlDefinedCenters(gates) {
+  const out = new Set();
+  for (const [a, b] of HD_CHANNELS) if (gates.has(a) && gates.has(b)) { out.add(centerOfGate(a)); out.add(centerOfGate(b)); }
+  return out;
+}
+
+function tlFocus(d) {
+  const retro = new Set(d.sky.filter(s => s.retro).map(s => s.body));
+  const cands = [];
+  d.events.forEach(e => {
+    if (e.kind === 'station') cands.push({ score: TL_SLOW.has(e.body) ? 6 : 5, mode: e.sub === 'retrograde' ? 'review' : 'act',
+      area: e.house ? TL_HOUSE[e.house] : (TL_POINT_AREA[e.body] || 'this area') });
+    if (e.kind === 'lunation') cands.push({ score: 4, mode: e.sub === 'New Moon' ? 'speak' : 'close', area: e.house ? TL_HOUSE[e.house] : 'what has been building' });
+  });
+  d.aspects.filter(a => a.exact).forEach(a => {
+    const hard = tlTone(a.t, a.asp) < 0;
+    let mode = TL_BASE_MODE[a.t];
+    if (!hard && (a.t === 'Saturn' || (a.t === 'Mercury' && a.n === 'Saturn') || (a.t === 'Sun' && a.n === 'Mercury'))) mode = 'decide';
+    if (hard && a.t === 'Saturn') mode = 'build';
+    cands.push({ score: TL_WEIGHT[a.t] * (TL_KEY_POINTS.has(a.n) ? 2 : 1) * (hard ? 1.1 : 1), mode, hard, planet: a.t,
+      area: TL_POINT_AREA[a.n] || a.n });
+  });
+  cands.sort((x, y) => y.score - x.score);
+  let top = cands[0] || { mode: d.heat < 0.25 ? 'rest' : 'build', area: 'what is already in motion' };
+  let mode = top.mode;
+  const notes = [];
+  if (retro.has('Mercury')) { notes.push('Mercury retrograde: revise, don\'t sign.'); if (mode === 'decide') mode = 'review'; }
+  if (retro.has('Venus')) notes.push('Venus retrograde: rethink prices and partner terms.');
+  let line = TL_MODE_LINE[mode](top.area);
+  if (top.hard) line += top.planet === 'Mars' ? ' Expect friction; pace yourself.' : ' Expect some pressure; go slowly.';
+
+  // Plain "easy for / pressure on": net weight per life area from close contacts, two of each at most
+  const net = {};
+  d.aspects.filter(a => !a.background && (a.exact || a.orb <= 0.7)).forEach(a => {
+    const t = tlTone(a.t, a.asp);
+    if (!t) return;
+    const w = t * TL_WEIGHT[a.t] * (a.exact ? 2 : 1);
+    const areas = new Set([TL_POINT_AREA[a.n] || a.n]);
+    if (a.nh && TL_LIFE_HOUSES[a.nh]) areas.add(TL_LIFE_HOUSES[a.nh]);
+    if (a.th && TL_LIFE_HOUSES[a.th]) areas.add(TL_LIFE_HOUSES[a.th]);
+    areas.forEach(x => net[x] = (net[x] || 0) + w);
+  });
+  const ranked = Object.entries(net).sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]));
+  const easy = ranked.filter(([, v]) => v > 0).slice(0, 2).map(([k]) => k);
+  const pressure = ranked.filter(([, v]) => v < 0).slice(0, 2).map(([k]) => k);
+
+  // Open Human Design centres switched on by today's sky
+  let centers = [];
+  const natal = TL.data?.natal;
+  if (natal?.gates?.size) {
+    const tg = new Set(d.sky.map(s => gateLine(s.lon).gate));
+    const sun = d.sky.find(s => s.body === 'Sun');
+    if (sun) tg.add(gateLine((sun.lon + 180) % 360).gate);
+    const union = new Set([...natal.gates, ...tg]);
+    const base = tlDefinedCenters(natal.gates);
+    centers = [...tlDefinedCenters(union)].filter(c => !base.has(c));
+  }
+  return { mode, area: top.area, line, easy, pressure, notes, centers };
+}
+const TL_TONE_PLAIN = { harmony: 'Easy day for the connection', friction: 'Pressure on the connection', mixed: 'Easy and tense at once', quiet: 'Quiet for the connection' };
+
 // ─── UI ──────────────────────────────────────────────────────────────────────
 function tlLevel(h) { return h > 0.75 ? 4 : h > 0.5 ? 3 : h > 0.28 ? 2 : 1; }
 const TL_TONE_LABEL = { harmony: 'Harmony', friction: 'Friction', mixed: 'Mixed', quiet: 'Quiet' };
@@ -366,6 +448,10 @@ function renderTimeline(force) {
       </select>
     </label>
     <button class="btn-sm" onclick="tlSetStart('${tlIso(new Date())}')">Today</button>
+    <div class="tl-view" role="group" aria-label="View">
+      <button class="starter${TL.detail ? '' : ' tg-on'}" onclick="tlSetDetail(false)">Simple</button>
+      <button class="starter${TL.detail ? ' tg-on' : ''}" onclick="tlSetDetail(true)">Detailed</button>
+    </div>
     ${others.length ? `<div class="tl-with"><span class="tl-ctl">Together with</span>${others.map(o =>
       `<button class="starter${TL.with.has(o.id) ? ' tg-on' : ''}" onclick="tlToggleWith('${o.id}')">${o.emoji || '✦'} ${esc(o.name)}</button>`).join('')}</div>` : ''}`;
 
@@ -407,7 +493,7 @@ function renderTimeline(force) {
       <div class="tl-row"><span class="tl-row-name">Together</span><div class="tl-tones">` +
       T.days.map((d, i) => `<button class="tl-tone t-${d.tone}" title="${fmtShort(TL.data[i].date)} · ${TL_TONE_LABEL[d.tone]}" onclick="tlJump(${i})"></button>`).join('') +
       `</div></div></div>
-      <div class="tl-strip-legend"><span>${fmtShort(TL.data[0].date)}</span><span class="tl-key"><i class="t-harmony"></i>Harmony <i class="t-friction"></i>Friction <i class="t-mixed"></i>Mixed <i class="t-quiet"></i>Quiet</span><span>${fmtShort(TL.data[TL.data.length - 1].date)}</span></div>
+      <div class="tl-strip-legend"><span>${fmtShort(TL.data[0].date)}</span><span class="tl-key"><i class="t-harmony"></i>Easy <i class="t-friction"></i>Pressure <i class="t-mixed"></i>Both <i class="t-quiet"></i>Quiet</span><span>${fmtShort(TL.data[TL.data.length - 1].date)}</span></div>
       ${tlTogetherHeader(T)}`;
   } else {
     strip = `<div class="tl-strip" role="list" aria-label="Intensity by day">` + TL.data.map((d, i) =>
@@ -469,6 +555,16 @@ function tlCard(d, i) {
       ${d.sky.map(s => `<div class="tl-sky-row"><span class="tl-g">${TL_GLYPH[s.body]}</span><span>${s.body}</span><span>${s.deg} ${s.sign}${s.retro ? ' ℞' : ''}</span><span>${s.house ? 'H' + s.house : ''}</span></div>`).join('')}
     </div>`;
 
+  const f = tlFocus(d);
+  const showWhy = TL.detail || TL.why[d.iso];
+  const chips = [
+    ...f.easy.map(a => `<span class="tl-chip easy">Easy for ${esc(a)}</span>`),
+    ...f.pressure.map(a => `<span class="tl-chip press">Pressure on ${esc(a)}</span>`)
+  ].join('');
+  const centersHtml = f.centers.length
+    ? `<div class="tl-centers">Open centres switched on: ${f.centers.map(c => `<b>${c}</b> (${TL_CENTER_PLAIN[c]})`).join(', ')}</div>` : '';
+  const tgSimple = tday ? `<div class="tl-tg-simple t-${tday.tone}">${TL_TONE_PLAIN[tday.tone]}</div>` : '';
+
   return `
     <div class="tl-card${isToday ? ' today' : ''}" id="tl-day-${i}">
       <div class="tl-head">
@@ -476,23 +572,36 @@ function tlCard(d, i) {
         <span class="tl-date">${label}${isToday ? ' · today' : ''}</span>
         <span class="tl-num" title="Personal Year · Personal Month">PY ${d.py} · PM ${d.pm}</span>
       </div>
-      ${events}
-      ${readHtml}
-      ${together}
-      <div class="tl-asps">${aspects}</div>
-      ${bgHtml}
-      ${hd}
+      <div class="tl-focus">
+        <span class="tl-mode m-${f.mode}">${TL_MODE[f.mode]}</span>
+        <div class="tl-focus-txt"><div class="tl-focus-area">${esc(f.area.charAt(0).toUpperCase() + f.area.slice(1))}</div><p>${esc(f.line)}</p></div>
+      </div>
+      ${chips ? `<div class="tl-chips">${chips}</div>` : ''}
+      ${f.notes.length ? `<div class="tl-notes">${f.notes.map(esc).join(' ')}</div>` : ''}
+      ${centersHtml}
+      ${tgSimple}
+      <div class="tl-why ${showWhy ? 'open' : ''}">
+        ${events}
+        ${readHtml}
+        ${together}
+        <div class="tl-asps">${aspects}</div>
+        ${bgHtml}
+        ${hd}
+        ${sky}
+      </div>
       <div class="tl-actions">
-        <button class="btn-sm" onclick="tlToggleSky('${d.iso}')">${open ? 'Hide sky' : 'Show sky'}</button>
+        ${TL.detail ? '' : `<button class="btn-sm" onclick="tlToggleWhy('${d.iso}')">${showWhy ? 'Hide why' : 'Why?'}</button>`}
+        ${showWhy ? `<button class="btn-sm" onclick="tlToggleSky('${d.iso}')">${open ? 'Hide sky' : 'Show sky'}</button>` : ''}
         <button class="btn-sm tl-ask" onclick="tlAsk(${i})">✦ ${TL.together ? 'Ask about this day together' : 'Ask about this day'}</button>
       </div>
-      ${sky}
     </div>`;
 }
 
 function tlSetStart(v) { const [y, m, d] = v.split('-').map(Number); if (!y) return; TL.start = new Date(y, m - 1, d, 12); renderTimeline(); }
 function tlSetDays(v) { TL.days = +v || 30; renderTimeline(); }
 function tlToggleSky(iso) { TL.open[iso] = !TL.open[iso]; renderTimeline(); }
+function tlToggleWhy(iso) { TL.why[iso] = !TL.why[iso]; renderTimeline(); }
+function tlSetDetail(v) { TL.detail = !!v; renderTimeline(); }
 function tlToggleWith(id) { TL.with.has(id) ? TL.with.delete(id) : TL.with.add(id); renderTimeline(); }
 function tlJump(i) { const el = document.getElementById('tl-day-' + i); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 

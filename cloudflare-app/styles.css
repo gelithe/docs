@@ -748,3 +748,23 @@ textarea.input-box::placeholder { color: var(--text-muted); }
 .tl-tone-badge { background: transparent !important; border: 1px solid currentColor; }
 .tl-tone-badge.t-harmony { color: var(--green); } .tl-tone-badge.t-friction { color: var(--red-soft); }
 .tl-tone-badge.t-mixed { color: var(--gold); } .tl-tone-badge.t-quiet { color: var(--text-muted); }
+/* Timeline · plain Focus layer */
+.tl-view { display: flex; gap: 4px; }
+.tl-focus { display: flex; gap: 12px; align-items: flex-start; margin: 4px 0 8px; }
+.tl-mode { flex-shrink: 0; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 4px 9px; border-radius: 6px; border: 1px solid currentColor; margin-top: 2px; }
+.m-act { color: var(--red-soft); } .m-speak { color: var(--blue); } .m-build { color: var(--gold); } .m-review { color: var(--purple); }
+.m-decide { color: var(--teal); } .m-rest { color: var(--text-muted); } .m-close { color: var(--red-soft); }
+.tl-focus-txt { min-width: 0; }
+.tl-focus-area { font-family: 'Cinzel', serif; font-size: 0.95rem; color: var(--text-bright); }
+.tl-focus-txt p { font-size: 0.84rem; color: var(--text); line-height: 1.5; margin-top: 2px; }
+.tl-chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 6px; }
+.tl-chip { font-size: 0.7rem; padding: 2px 9px; border-radius: 12px; border: 1px solid var(--border); }
+.tl-chip.easy { color: var(--green); border-color: var(--green); }
+.tl-chip.press { color: var(--red-soft); border-color: var(--red-soft); }
+.tl-notes, .tl-centers { font-size: 0.74rem; color: var(--text-muted); margin: 2px 0 4px; line-height: 1.5; }
+.tl-centers b { color: var(--purple); font-weight: 600; }
+.tl-tg-simple { font-size: 0.74rem; font-weight: 600; margin: 4px 0; }
+.tl-tg-simple.t-harmony { color: var(--green); background: none; } .tl-tg-simple.t-friction { color: var(--red-soft); background: none; }
+.tl-tg-simple.t-mixed { color: var(--gold); background: none; } .tl-tg-simple.t-quiet { color: var(--text-muted); background: none; }
+.tl-why { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.tl-why.open { display: block; }
