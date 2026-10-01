@@ -351,7 +351,7 @@ function tlTogetherDayText(i) {
 const TL_POINT_AREA = { Sun:'identity and visibility', Moon:'home and family', Mercury:'ideas and communication',
   Venus:'relationships and money', Mars:'drive and initiative', Jupiter:'growth and opportunities', Saturn:'structure and commitments',
   Uranus:'change and freedom', Neptune:'inspiration and ideals', Pluto:'power and depth', ASC:'visibility', MC:'career and reputation' };
-const TL_MODE = { act:'Act', speak:'Speak', build:'Build', review:'Review', decide:'Decide', rest:'Rest', close:'Close' };
+const TL_MODE = { act:'Act', speak:'Speak', build:'Build', review:'Review', decide:'Decide', rest:'Rest', close:'Close', play:'Play' };
 const TL_MODE_LINE = {
   act:    a => `Good day to move on ${a}.`,
   speak:  a => `Good day to talk, write or reach out about ${a}.`,
@@ -359,7 +359,8 @@ const TL_MODE_LINE = {
   review: a => `Revise and reconnect around ${a}. Don't launch.`,
   decide: a => `Good day to commit on ${a}, after one night's sleep.`,
   close:  a => `Finish and mark what is ending around ${a}.`,
-  rest:   a => `Lower the pace. Give ${a} some space.`
+  rest:   a => `Lower the pace. Give ${a} some space.`,
+  play:   a => `Make room for fun: ${a}. No outcome needed.`
 };
 const TL_BASE_MODE = { Sun:'act', Mercury:'speak', Venus:'speak', Mars:'act', Jupiter:'act', Saturn:'build', Uranus:'act', Neptune:'rest', Pluto:'build' };
 const TL_CENTER_PLAIN = { Head:'questions and inspiration', Ajna:'clear thinking', Throat:'speaking and acting', G:'direction', Heart:'willpower',
@@ -377,13 +378,15 @@ function tlFocus(d) {
   d.events.forEach(e => {
     if (e.kind === 'station') cands.push({ score: TL_SLOW.has(e.body) ? 6 : 5, mode: e.sub === 'retrograde' ? 'review' : 'act',
       area: e.house ? TL_HOUSE[e.house] : (TL_POINT_AREA[e.body] || 'this area') });
-    if (e.kind === 'lunation') cands.push({ score: 4, mode: e.sub === 'New Moon' ? 'speak' : 'close', area: e.house ? TL_HOUSE[e.house] : 'what has been building' });
+    if (e.kind === 'lunation') cands.push({ score: 4, mode: e.sub === 'New Moon' ? (e.house === 5 ? 'play' : 'speak') : 'close', area: e.house ? TL_HOUSE[e.house] : 'what has been building' });
   });
   d.aspects.filter(a => a.exact).forEach(a => {
     const hard = tlTone(a.t, a.asp) < 0;
     let mode = TL_BASE_MODE[a.t];
     if (!hard && (a.t === 'Saturn' || (a.t === 'Mercury' && a.n === 'Saturn') || (a.t === 'Sun' && a.n === 'Mercury'))) mode = 'decide';
     if (hard && a.t === 'Saturn') mode = 'build';
+    // Easy contacts from the pleasure planets to the house of children and play, or to natal Venus/Jupiter
+    if (!hard && ['Sun','Venus','Jupiter','Moon'].includes(a.t) && (a.nh === 5 || a.th === 5 || ['Venus','Jupiter'].includes(a.n))) mode = 'play';
     cands.push({ score: TL_WEIGHT[a.t] * (TL_KEY_POINTS.has(a.n) ? 2 : 1) * (hard ? 1.1 : 1), mode, hard, planet: a.t,
       area: TL_POINT_AREA[a.n] || a.n });
   });
