@@ -335,7 +335,7 @@ async function send() {
     // Keep the proxy's note (refusal, length cut) on screen but out of the
     // history; a reply with no content at all is not worth remembering, so the
     // question that produced it is dropped from the history too.
-    const { content } = splitReply(reply);
+    const { content, note } = splitReply(reply);
     if (content.trim()) S.messages.push({ role: 'assistant', content });
     else S.messages.pop();
     const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -343,7 +343,16 @@ async function send() {
       bubbleEl.querySelector('.bubble').innerHTML = fmtText(reply);
       bubbleEl.querySelector('.msg-meta').textContent = `✦ Compass · ${time}`;
     } else {
-      appendMsg({ role: 'assistant', content: reply });
+      bubbleEl = appendMsg({ role: 'assistant', content: reply });
+    }
+    // Cut short by the ceiling: one tap carries on from where it stopped.
+    if (/length limit/.test(note) && bubbleEl) {
+      const chip = document.createElement('div');
+      chip.className = 'starter';
+      chip.style.marginTop = '6px';
+      chip.textContent = '↳ Continue';
+      chip.onclick = () => { chip.remove(); document.getElementById('inputBox').value = 'Continue exactly where you stopped.'; send(); };
+      bubbleEl.appendChild(chip);
     }
     saveSessionData(profile.id);
   } catch (err) {
@@ -378,7 +387,9 @@ async function callAPI(profile, onChunk) {
   return llmComplete({
     system: buildSystem(S.mode, profile),
     messages: historyWindow(S.messages),
-    max_tokens: 2000,   // the model's own thinking counts against this too
+    // A ceiling, not a target: only what is written is billed. Together holds
+    // several charts and earns the room. The model's own thinking counts too.
+    max_tokens: S.mode === 'together' ? 6000 : 3000,
     // Conversation, Together included, runs on the chat model; only the
     // portrait documents use the deeper tier.
     tier: 'chat',
@@ -397,6 +408,7 @@ function appendMsg(msg) {
     `<div class="msg-meta">${msg.role === 'user' ? (profile?.name || 'You') : '✦ Compass'} · ${time}</div>`;
   convo.appendChild(div);
   scrollBottom();
+  return div;
 }
 
 function addTyping() {

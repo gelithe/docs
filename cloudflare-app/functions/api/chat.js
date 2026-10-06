@@ -80,12 +80,12 @@ const isEffortRejected = (status, msg) => status === 400 && /output_config|effor
 const NOTE_MARK = '\u2063';
 const STOP_NOTES = {
   refusal:    NOTE_MARK + '\n\n— The model declined to continue this reply. Try rephrasing, or start a new conversation.',
-  max_tokens: NOTE_MARK + '\n\n— The reply reached its length limit.'
+  max_tokens: NOTE_MARK + '\n\n— The reply reached its length limit. Tap Continue to keep going.'
 };
 
 // Ceilings per tier for calls on the owner's key. A caller with a code picks a
 // tier, never a model or an unbounded length; their own key (BYOK) may do both.
-const MAX_TOKENS = { chat: 2000, summary: 1200, deep: 4000, doc: 10000 };
+const MAX_TOKENS = { chat: 6000, summary: 1200, deep: 6000, doc: 10000 };
 
 
 // ─── USAGE TALLY (optional) ──────────────────────────────────────────────────
