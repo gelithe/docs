@@ -5,19 +5,24 @@ description: Load the Chart Compass context (compass.sagemodeai.com)
 You are picking up **Chart Compass** — the personal astrological companion live
 at `compass.sagemodeai.com`.
 
-Read `cloudflare-app/README.md` first, then orient yourself in the code:
+Read `cloudflare-app/README.md`, then `cloudflare-app/AUDIT-2026-10.md`, then orient yourself in the code:
 
 ```
 cloudflare-app/
   index.html              app shell (versioned asset URLs — bump on every change)
   styles.css
   js/core.js              config, i18n, storage, proxy client, prompt builders,
-                          Book memory, buildSystem
+                          Book memory, buildSystem (two cached system blocks)
   js/engine.js            wizard, astro/HD/Gene Keys engine, portrait prompts
   js/app.js               UI, conversation, book/journal/portrait rendering, boot
-  functions/api/chat.js   Cloudflare Pages Function: server-side key, access
-                          codes, BYOK, streaming, per-task model routing
+  js/timeline.js          Timeline tab: day-by-day transits, day readings, Focus
+                          layer, Together overlay — all computed locally, no model
+  functions/api/chat.js   Pages Function: server-side key, labelled access codes,
+                          BYOK, streaming, per-task model routing, usage tally
+  functions/api/usage.js  protected usage report (USAGE KV + ADMIN_KEY)
   sw.js                   service worker (bump CACHE with the asset version)
+  AUDIT-2026-10.md        THE PLAN: findings, cost model, phases, status, open
+                          questions. Read it after the README. Do one phase.
 ```
 
 Things that are true and easy to get wrong:
@@ -36,4 +41,13 @@ Things that are true and easy to get wrong:
   defensively. If a brief is growing longer, it is probably getting worse —
   replace a rule or sharpen the persona instead of adding one.
 
-Summarise what you found in a few lines, then ask what we are changing.
+- **Keep the branch level with `main` by merging, never force-push.** Work on
+  `claude/astrology-chart-analysis-obkvN`; deploy by mirroring `cloudflare-app/`
+  and `.claude/` onto `main` (git worktree of `origin/main`, copy, commit, push).
+- **`vercel-app/` is an older copy the owner still uses. Never touch it.**
+- Keep context light: do ONE phase from the audit per session, delegate
+  file-wide reads to a subagent, write results into the audit's status table,
+  not into chat.
+
+Summarise what you found in a few lines, name the phase you are about to do,
+and confirm before changing anything.
