@@ -42,7 +42,10 @@ Things that are true and easy to get wrong:
   replace a rule or sharpen the persona instead of adding one.
 
 - **Keep the branch level with `main` by merging, never force-push.** Work on
-  `claude/astrology-chart-analysis-obkvN`; deploy by mirroring `cloudflare-app/`
+  the branch this session was assigned (each session gets its own `claude/…`
+  branch; the old `astrology-chart-analysis-obkvN` is gone). When the branch is
+  level with `main`, deploy with a fast-forward push of it to `main`; when it
+  carries unrelated commits, deploy by mirroring `cloudflare-app/`
   and `.claude/` onto `main` (git worktree of `origin/main`, copy, commit, push).
 - **`vercel-app/` is an older copy the owner still uses. Never touch it.**
 - Keep context light: do ONE phase from the audit per session, delegate

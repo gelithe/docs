@@ -332,13 +332,27 @@ async function send() {
   try {
     const reply = await callAPI(profile, onChunk);
     if (typingEl) { typingEl.remove(); typingEl = null; }
-    S.messages.push({ role: 'assistant', content: reply });
+    // Keep the proxy's note (refusal, length cut) on screen but out of the
+    // history; a reply with no content at all is not worth remembering, so the
+    // question that produced it is dropped from the history too.
+    const { content, note } = splitReply(reply);
+    if (content.trim()) S.messages.push({ role: 'assistant', content });
+    else S.messages.pop();
     const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     if (bubbleEl) {
       bubbleEl.querySelector('.bubble').innerHTML = fmtText(reply);
       bubbleEl.querySelector('.msg-meta').textContent = `✦ Compass · ${time}`;
     } else {
-      appendMsg({ role: 'assistant', content: reply });
+      bubbleEl = appendMsg({ role: 'assistant', content: reply });
+    }
+    // Cut short by the ceiling: one tap carries on from where it stopped.
+    if (/length limit/.test(note) && bubbleEl) {
+      const chip = document.createElement('div');
+      chip.className = 'starter';
+      chip.style.marginTop = '6px';
+      chip.textContent = '↳ Continue';
+      chip.onclick = () => { chip.remove(); document.getElementById('inputBox').value = 'Continue exactly where you stopped.'; send(); };
+      bubbleEl.appendChild(chip);
     }
     saveSessionData(profile.id);
   } catch (err) {
@@ -358,13 +372,27 @@ async function send() {
   scrollBottom();
 }
 
+// The part of the conversation sent to the model. Trimmed in blocks of 8 once
+// it passes 24 messages, so the prefix stays the same for several turns (and
+// stays cached), and always starting at a user turn — the API rejects a history
+// that opens with the assistant, which is what a plain slice did at message 13.
+function historyWindow(msgs, max = 24, step = 8) {
+  let start = 0;
+  while (msgs.length - start > max) start += step;
+  while (start > 0 && start < msgs.length && msgs[start].role !== 'user') start++;
+  return msgs.slice(start);
+}
+
 async function callAPI(profile, onChunk) {
   return llmComplete({
     system: buildSystem(S.mode, profile),
-    messages: S.messages.slice(-24),
-    max_tokens: 1500,
-    // Constellation work holds many charts at once → deeper model; else fast chat
-    tier: S.mode === 'together' ? 'deep' : 'chat',
+    messages: historyWindow(S.messages),
+    // A ceiling, not a target: only what is written is billed. Together holds
+    // several charts and earns the room. The model's own thinking counts too.
+    max_tokens: S.mode === 'together' ? 6000 : 3000,
+    // Conversation, Together included, runs on the chat model; only the
+    // portrait documents use the deeper tier.
+    tier: 'chat',
     onChunk
   });
 }
@@ -380,6 +408,7 @@ function appendMsg(msg) {
     `<div class="msg-meta">${msg.role === 'user' ? (profile?.name || 'You') : '✦ Compass'} · ${time}</div>`;
   convo.appendChild(div);
   scrollBottom();
+  return div;
 }
 
 function addTyping() {
@@ -396,6 +425,7 @@ function scrollBottom() { const c = document.getElementById('convo'); c.scrollTo
 
 function fmtText(raw) {
   return raw
+    .replace(NOTE_MARK, '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
@@ -430,9 +460,29 @@ function newSession() {
 
 function clearSessions() {
   const id = getActiveId();
-  if (!id || !confirm('Clear all conversations for this profile?')) return;
+  if (!id || !confirm('Clear all conversations for this profile? The distilled memory of them is cleared too.')) return;
   saveSessions(id, []);
+  localStorage.removeItem(ns(id, 'memory'));
   renderBook();
+}
+
+function forgetMemory() {
+  const id = getActiveId();
+  if (!id || !confirm('Forget what the Compass remembers from past conversations? The conversations themselves stay in the Book; the memory is rebuilt from the next ones.')) return;
+  localStorage.removeItem(ns(id, 'memory'));
+  renderBook();
+}
+
+function removeProfile() {
+  const id = getActiveId();
+  const p = getProfiles().find(x => x.id === id);
+  if (!p) return;
+  closeSidebar();
+  if (!confirm(`Delete ${p.name}'s profile? This removes their chart, conversations, journal, portrait and memory from this browser. Export a backup first if you want to keep them.`)) return;
+  deleteProfile(id);
+  const rest = getProfiles();
+  if (rest.length) { loadProfile(rest[0].id); renderProfileDropdown(); }
+  else location.reload();   // fresh install path: the wizard opens
 }
 
 // ─── BACKUP / RESTORE ─────────────────────────────────────────────────────────
@@ -455,13 +505,14 @@ function exportAll() {
   const data = {};
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    // include everything except stored API keys (kept out of backups for safety)
-    if (k && k.startsWith('cc_') && !k.endsWith('_key')) data[k] = localStorage.getItem(k);
+    // include everything except credentials: stored API keys and the access
+    // code stay out of backups, so a shared file never carries access
+    if (k && k.startsWith('cc_') && !k.endsWith('_key') && k !== 'cc_access') data[k] = localStorage.getItem(k);
   }
   const payload = { app: 'chart-compass', version: 1, exported: new Date().toISOString(), data };
   ccDownload(`chart-compass-backup-${ccStamp()}.json`, JSON.stringify(payload, null, 2), 'application/json');
   const n = getProfiles().length;
-  alert(`Backup saved — ${n} profile${n!==1?'s':''}, with all conversations, journals and portraits.\n\nKeep this file safe: it restores everything on a new device or browser. (Your API key is not included — you re-enter it once after restoring.)`);
+  alert(`Backup saved — ${n} profile${n!==1?'s':''}, with all conversations, journals and portraits.\n\nKeep this file safe: it restores everything on a new device or browser. (Your access code or API key is not included — you re-enter it once after restoring.)`);
 }
 
 function importAll() {
@@ -488,7 +539,7 @@ function importAll() {
         const toRemove = [];
         for (let i = 0; i < localStorage.length; i++) {
           const k = localStorage.key(i);
-          if (k && k.startsWith('cc_') && !k.endsWith('_key')) toRemove.push(k);
+          if (k && k.startsWith('cc_') && !k.endsWith('_key') && k !== 'cc_access') toRemove.push(k);
         }
         toRemove.forEach(k => localStorage.removeItem(k));
       }
@@ -533,8 +584,24 @@ function renderBook() {
   if (!id) return;
   const sessions = getSessions(id);
   const container = document.getElementById('bookChapters');
-  if (!sessions.length) { container.innerHTML = '<p class="book-empty">Your conversations will appear here as chapters.</p>'; return; }
-  container.innerHTML = sessions.map((s, i) => {
+  // What the Compass carries forward from past chapters — visible, and forgettable.
+  const mem = getMemory(id);
+  const memHtml = mem?.digest?.trim() ? `
+      <div class="chapter memory">
+        <div class="chapter-head" onclick="toggleChapter('mem')">
+          <div>
+            <div class="chapter-title">✦ What the Compass remembers</div>
+            <div class="chapter-meta">distilled from past conversations · updated ${new Date(mem.updatedAt || Date.now()).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+          </div>
+          <span class="chapter-arrow" id="arr-mem">▸</span>
+        </div>
+        <div class="chapter-body" id="ch-mem">
+          <div class="ch-msg assistant">${esc(mem.digest)}</div>
+          <div style="margin-top:10px;"><button class="btn-sm" onclick="forgetMemory()">Forget this</button></div>
+        </div>
+      </div>` : '';
+  if (!sessions.length) { container.innerHTML = memHtml + '<p class="book-empty">Your conversations will appear here as chapters.</p>'; return; }
+  container.innerHTML = memHtml + sessions.map((s, i) => {
     const date = new Date(s.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     const exchanges = Math.ceil(s.messages.length / 2);
     const msgsHtml = s.messages.map(m =>
@@ -643,6 +710,12 @@ function renderPortrait() {
     </div>`;
 
   if (busy) {
+    const partial = S.partialDoc?.[kind];
+    if (partial?.trim()) {   // the document arrives as it is written
+      container.innerHTML = fmtPortrait(partial) +
+        `<div style="display:flex;gap:5px;justify-content:center;padding:14px 0;"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+      return;
+    }
     container.innerHTML = `
       <div class="portrait-empty">
         <div style="display:flex;gap:5px;"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
@@ -672,17 +745,27 @@ async function regenerateDoc(kind) {
   if (!key) { alert('No API key available — add one via Edit profile.'); return; }
   const existing = kind === 'story' ? profile.notes : profile.analysis;
   if (existing?.trim() && !confirm('Rewrite this document from your current chart data? The existing version will be replaced — download it first if you want to keep it.')) return;
-  S.generating = S.generating || {};
-  S.generating[kind] = true;
-  renderPortrait();
+  docProgress(kind, '', true);
   try {
     const prompt = kind === 'story' ? buildDeepAnalysisPrompt(profile) : buildTechAnalysisPrompt(profile);
-    const text = await generateDoc(prompt);
+    const text = await generateDoc(prompt, partial => docProgress(kind, partial, true));
     if (text) updateProfile(profile.id, kind === 'story' ? { notes: text } : { analysis: text });
     else alert('Generation did not complete — the model may have been slow or busy. Please try again in a moment. If it keeps failing, check your access code (sidebar → Access code → Update).');
   } catch {}
-  S.generating[kind] = false;
-  renderPortrait();
+  docProgress(kind, '', false);
+}
+
+// Progress of a portrait document being written: the partial text is rendered
+// live in the Portrait tab, and the wizard overlay (if still up) shows the
+// word count. Called from both generation paths (first run and regenerate).
+function docProgress(kind, partial, busy) {
+  S.generating = S.generating || {};
+  S.partialDoc = S.partialDoc || {};
+  S.generating[kind] = !!busy;
+  S.partialDoc[kind] = busy ? partial : '';
+  const counter = document.getElementById(`gen-${kind}`);
+  if (counter) counter.textContent = busy ? (partial ? `${partial.split(/\s+/).filter(Boolean).length} words` : '…') : (partial ? 'done' : '—');
+  if (!busy || (S.portraitView || 'story') === kind) renderPortrait();
 }
 
 function downloadDoc(kind) {

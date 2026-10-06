@@ -42,16 +42,50 @@ export async function onRequestOptions() {
 
 // Per-task model routing. Set these in Cloudflare → Settings → Variables:
 //   MODEL_CHAT     personal conversation (fast, warm)      — default below
-//   MODEL_DEEP     constellations + portraits (max depth)  — set to an Opus model
+//   MODEL_DOC      the two portrait documents                — set to an Opus model
+//   MODEL_DEEP     deeper conversation work; also the fallback for MODEL_DOC
 //   MODEL_SUMMARY  memory digest (cheap compression)       — set to a Haiku model
 //   MODEL_OPENAI   model used for OpenAI BYOK
 // Any unset tier falls back to MODEL_DEFAULT, so the app keeps working untouched.
 const MODEL_DEFAULT = 'claude-sonnet-4-6';
 function modelForTier(env, tier) {
+  if (tier === 'doc')     return env.MODEL_DOC     || env.MODEL_DEEP || MODEL_DEFAULT;
   if (tier === 'deep')    return env.MODEL_DEEP    || MODEL_DEFAULT;
   if (tier === 'summary') return env.MODEL_SUMMARY || MODEL_DEFAULT;
   return env.MODEL_CHAT || MODEL_DEFAULT; // chat / anything else
 }
+
+// Effort per tier. Current models think adaptively by default and bill those
+// tokens as output; everyday chat and the digest need little of it, documents
+// deserve more. Haiku and the 4.5 generation reject `effort`, so it is left off
+// there (and dropped on the retry if a model still objects).
+const EFFORT = { chat: 'low', summary: 'low', deep: 'medium', doc: 'high' };
+function effortFor(tier, model) {
+  if (/haiku|sonnet-4-5|-3-/.test(model)) return null;
+  return EFFORT[tier] || EFFORT.chat;
+}
+
+// Retry on the default model only when the configured model itself is the
+// problem (unknown or retired ID). A rate limit or an overloaded upstream is
+// retried by the user, not doubled by the proxy.
+function isModelRejected(status, msg) {
+  if (status === 404) return true;   // not_found_error: "model: <id>"
+  return status === 400 && /^model:|not a valid model|unknown model/i.test(msg || '');
+}
+const isEffortRejected = (status, msg) => status === 400 && /output_config|effort/i.test(msg || '');
+
+// Shown in the reply when the model stops for a reason other than finishing.
+// NOTE_MARK precedes every note: the client shows what follows it but keeps it
+// out of the saved conversation, so the note is never replayed to the model.
+const NOTE_MARK = '\u2063';
+const STOP_NOTES = {
+  refusal:    NOTE_MARK + '\n\n— The model declined to continue this reply. Try rephrasing, or start a new conversation.',
+  max_tokens: NOTE_MARK + '\n\n— The reply reached its length limit. Tap Continue to keep going.'
+};
+
+// Ceilings per tier for calls on the owner's key. A caller with a code picks a
+// tier, never a model or an unbounded length; their own key (BYOK) may do both.
+const MAX_TOKENS = { chat: 6000, summary: 1200, deep: 6000, doc: 10000 };
 
 
 // ─── USAGE TALLY (optional) ──────────────────────────────────────────────────
@@ -80,8 +114,11 @@ async function recordUsage(env, label, tier) {
 // next message in the same conversation reads everything before it from cache
 // (billed at a fraction of normal input). Shorter prompts than the model's
 // caching minimum are simply not cached — no error, no change in the reply.
-function withHistoryCache(messages) {
+// A one-shot call (portrait, digest: one message, no system prompt) is never
+// read again, so it gets no marker — a cache write costs more than a plain read.
+function withHistoryCache(messages, system) {
   if (!Array.isArray(messages) || !messages.length) return messages;
+  if (messages.length === 1 && !system) return messages;
   const out = messages.slice();
   const i = out.length - 1, m = out[i];
   if (m && m.role === 'user' && typeof m.content === 'string' && m.content) {
@@ -145,31 +182,44 @@ export async function onRequestPost({ request, env, waitUntil }) {
 
   // ── Anthropic: stream tokens as plain text ──
   // Resolve the model from the requested tier (an explicit model still wins).
-  const wantModel = model || modelForTier(env, tier);
-  async function callAnthropic(useModel) {
-    const payload = { model: useModel, max_tokens: max_tokens || 1500, messages: withHistoryCache(messages), stream: true };
+  const wantModel = (byok && model) || modelForTier(env, tier);
+  const cap = MAX_TOKENS[tier] || MAX_TOKENS.chat;
+  const useMax = byok ? (max_tokens || 1500) : Math.min(max_tokens || 1500, cap);
+  async function callAnthropic(useModel, effort) {
+    const payload = { model: useModel, max_tokens: useMax, messages: withHistoryCache(messages, system), stream: true };
     if (system) payload.system = system;   // string, or blocks with cache_control from the client
+    if (effort) payload.output_config = { effort };
     return fetch(ANTHROPIC_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify(payload)
     });
   }
+  const errorOf = async r => (await r.clone().json().catch(() => ({})))?.error?.message || '';
 
-  let upstream = await callAnthropic(wantModel);
-  // Safety net: if a configured tier model is rejected, fall back to the default
-  // so a bad env value never takes the app down.
-  if (!upstream.ok && wantModel !== MODEL_DEFAULT) {
-    upstream = await callAnthropic(MODEL_DEFAULT);
+  let useModel = wantModel, effort = effortFor(tier, useModel);
+  let upstream = await callAnthropic(useModel, effort);
+  if (!upstream.ok) {
+    const msg = await errorOf(upstream);
+    if (isEffortRejected(upstream.status, msg)) {
+      // The model does not take `effort` — once more without it.
+      effort = null;
+      upstream = await callAnthropic(useModel, effort);
+    } else if (isModelRejected(upstream.status, msg) && useModel !== MODEL_DEFAULT) {
+      // Safety net: a bad MODEL_* value falls back to the default so an env
+      // typo never takes the app down.
+      useModel = MODEL_DEFAULT;
+      upstream = await callAnthropic(useModel, effortFor(tier, useModel));
+    }
   }
   if (!upstream.ok || !upstream.body) {
-    const e = await upstream.json().catch(() => ({}));
-    return json({ error: e?.error?.message || `Anthropic HTTP ${upstream.status}` }, upstream.status || 502);
+    const msg = await errorOf(upstream);
+    return json({ error: msg || `Anthropic HTTP ${upstream.status}` }, upstream.status || 502);
   }
 
+  const reader = upstream.body.getReader();
   const stream = new ReadableStream({
     async start(controller) {
-      const reader = upstream.body.getReader();
       const dec = new TextDecoder();
       const enc = new TextEncoder();
       let buf = '';
@@ -189,13 +239,22 @@ export async function onRequestPost({ request, env, waitUntil }) {
               const ev = JSON.parse(d);
               if (ev.type === 'content_block_delta' && ev.delta && typeof ev.delta.text === 'string') {
                 controller.enqueue(enc.encode(ev.delta.text));
+              } else if (ev.type === 'message_delta' && STOP_NOTES[ev.delta?.stop_reason]) {
+                // A refusal (safety classifier or the model itself) or a length
+                // cut arrives as a normal stop — say so instead of going silent.
+                controller.enqueue(enc.encode(STOP_NOTES[ev.delta.stop_reason]));
+              } else if (ev.type === 'error') {
+                controller.enqueue(enc.encode(`${NOTE_MARK}\n\n— The reply was interrupted (${ev.error?.message || 'upstream error'}).`));
               }
             } catch { /* ignore keep-alives / partial frames */ }
           }
         }
       } catch { /* upstream dropped */ }
       controller.close();
-    }
+    },
+    // The browser went away (Skip, closed tab): stop reading so the model
+    // stops generating — and billing — too.
+    cancel() { reader.cancel().catch(() => {}); }
   });
 
   return new Response(stream, { headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-cache' } });

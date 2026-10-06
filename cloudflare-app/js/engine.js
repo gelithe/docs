@@ -265,25 +265,41 @@ function showGeneratingOverlay(profile, key) {
         <div class="dot"></div><div class="dot"></div><div class="dot"></div>
       </div>
       <p style="font-size:0.75rem;color:var(--text-muted);line-height:1.6;">Two documents are being written: The Story (blind spots &amp; paradoxes) and The Analysis (technical reference). Find them in the Portrait tab.</p>
+      <p style="font-size:0.75rem;color:var(--text-muted);line-height:1.6;">The Story: <span id="gen-story">…</span> · The Analysis: <span id="gen-analysis">…</span></p>
       <div class="wizard-nav" style="justify-content:center;margin-top:20px;">
-        <button class="btn-back" onclick="hideWizard()">Skip for now</button>
+        <button class="btn-back" onclick="cancelPortraits()">Skip for now</button>
       </div>
+      <p style="font-size:0.72rem;color:var(--text-muted);">Skipping stops the writing; you can generate both later from the Portrait tab.</p>
     </div>`;
 
+  // One controller for both documents: Skip aborts the requests, which closes
+  // the streams and stops the model (and the bill) instead of letting two long
+  // generations run on unseen.
+  const ctl = new AbortController();
+  WZ.portraitAbort = ctl;
+  const write = (kind, prompt, field) =>
+    generateDoc(prompt, partial => docProgress(kind, partial, true), ctl.signal)
+      .then(t => { if (t) updateProfile(profile.id, { [field]: t }); docProgress(kind, t || '', false); return !!t; })
+      .catch(() => { docProgress(kind, '', false); return false; });
+  docProgress('story', '', true);
+  docProgress('analysis', '', true);
   Promise.all([
-    generateDoc(buildDeepAnalysisPrompt(profile))
-      .then(t => { if (t) { updateProfile(profile.id, { notes: t }); return true; } return false; })
-      .catch(() => false),
-    generateDoc(buildTechAnalysisPrompt(profile))
-      .then(t => { if (t) { updateProfile(profile.id, { analysis: t }); return true; } return false; })
-      .catch(() => false)
+    write('story', buildDeepAnalysisPrompt(profile), 'notes'),
+    write('analysis', buildTechAnalysisPrompt(profile), 'analysis')
   ]).then(([story, analysis]) => {
+    WZ.portraitAbort = null;
+    if (ctl.signal.aborted) return;   // skipped on purpose — nothing to report
     hideWizard();
     renderPortrait();
     if (!story && !analysis) {
       alert('Your Portrait documents did not finish generating (the model may have been slow or busy). Open the Portrait tab and tap Generate to try again — your chart and the Compass are ready to use now.');
     }
   });
+}
+
+function cancelPortraits() {
+  if (WZ.portraitAbort) WZ.portraitAbort.abort();
+  hideWizard();
 }
 
 function buildDeepAnalysisPrompt(profile) {
@@ -412,11 +428,12 @@ VOICE: second person, analytical, compact, zero mysticism-for-its-own-sake. Ever
 NOTE ON THE PAIR: this document is the technical half of a pair. Its companion, The Story, is written with all technical vocabulary deliberately removed. So THIS is where the mechanics belong — name every placement, gate, center and number precisely here. Be the reference; let the other be the mirror.`;
 }
 
-async function generateDoc(prompt, onChunk) {
+async function generateDoc(prompt, onChunk, signal) {
   // Full length restored: Cloudflare streams and limits CPU (not wait) time.
   // Append the language directive so portraits honor the chosen language.
+  // The ceiling leaves room for the model's own thinking, which counts too.
   try {
-    return await llmComplete({ messages: [{ role: 'user', content: prompt + docLangInstruction() }], max_tokens: 8000, tier: 'deep', onChunk });
+    return await llmComplete({ messages: [{ role: 'user', content: prompt + docLangInstruction() }], max_tokens: 10000, tier: 'doc', onChunk, signal });
   } catch { return null; }
 }
 

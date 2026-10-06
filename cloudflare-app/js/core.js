@@ -114,7 +114,7 @@ function updateProfile(id, data) {
 function deleteProfile(id) {
   const ps = getProfiles().filter(p => p.id !== id);
   saveProfiles(ps);
-  ['sessions','journal','key'].forEach(k => localStorage.removeItem(`cc_${id}_${k}`));
+  ['sessions','journal','key','memory'].forEach(k => localStorage.removeItem(`cc_${id}_${k}`));
   if (getActiveId() === id) setActiveId(ps[0]?.id || '');
 }
 
@@ -176,7 +176,7 @@ async function updateAccessCode() {
   alert(verdict === 'ok' ? 'Access code updated ✓' : 'Saved — could not verify right now, but it will be used.');
 }
 
-async function llmComplete({ system, messages, max_tokens, model, tier, provider, onChunk }) {
+async function llmComplete({ system, messages, max_tokens, model, tier, provider, onChunk, signal }) {
   const res = await fetch(PROXY_ENDPOINT, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -184,7 +184,8 @@ async function llmComplete({ system, messages, max_tokens, model, tier, provider
       provider, model, tier, max_tokens, system, messages,
       accessCode: getAccessCode() || undefined,
       userKey: getPersonalKey() || undefined
-    })
+    }),
+    signal   // optional AbortSignal: cancelling closes the stream and stops the model
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -208,6 +209,14 @@ async function llmComplete({ system, messages, max_tokens, model, tier, provider
   return data.text || '';
 }
 function saveKey(id,k)      { localStorage.setItem(ns(id,'key'), k); }
+
+// A reply may end with a note from the proxy (refusal, length cut, interrupted),
+// introduced by an invisible mark. Show it; never save or replay it.
+const NOTE_MARK = '\u2063';
+function splitReply(text) {
+  const i = (text || '').indexOf(NOTE_MARK);
+  return i < 0 ? { content: text || '', note: '' } : { content: text.slice(0, i), note: text.slice(i + 1) };
+}
 
 // ─── MIGRATE OLD DATA ─────────────────────────────────────────────────────────
 function migrateOldData(profileId) {
@@ -298,38 +307,61 @@ function buildBookContext(profileId) {
   } catch { return ''; }
 }
 
-function buildMemoryPrompt(profile, sessions) {
-  const blocks = sessions.slice(0, 40).map(s => {
+// Incremental: the previous digest plus only the conversations since it was
+// written. Each session is capped so a long chat cannot blow up the prompt.
+function buildMemoryPrompt(profile, sessions, prevDigest) {
+  const blocks = sessions.slice(0, 12).map(s => {
     const d = new Date(s.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    const convo = (s.messages || []).map(m => `${m.role === 'user' ? profile.name : 'Compass'}: ${(m.content || '').slice(0, 400)}`).join('\n');
+    const msgs = (s.messages || []).slice(0, 12);
+    const convo = msgs.map(m => `${m.role === 'user' ? profile.name : 'Compass'}: ${(m.content || '').slice(0, 250)}`).join('\n');
     return `── ${d} · ${s.mode || 'reflect'} · "${s.title || ''}"\n${convo}`;
   }).join('\n\n');
 
-  return `Below are past conversations between ${profile.name} and their astrological companion (the "Compass"). Write a compact MEMORY DIGEST the companion can carry into future conversations so ${profile.name} feels continuously known.
+  const task = prevDigest
+    ? `Below is the companion's current MEMORY DIGEST about ${profile.name}, followed by the conversations that happened since it was written. Rewrite the digest so it folds the new conversations in — keep what still matters, let what has faded recede, notice what has grown.`
+    : `Below are past conversations between ${profile.name} and their astrological companion (the "Compass"). Write a compact MEMORY DIGEST the companion can carry into future conversations so ${profile.name} feels continuously known.`;
+
+  return `${task}
 
 Capture: recurring themes and questions, emotional threads over time, insights that landed, intentions or decisions they voiced, and anything sensitive to hold with care. Write about ${profile.name} in the third person. Be a memory, not a transcript — no play-by-play, no quotes. 150–250 words, plain prose.
-
-CONVERSATIONS:
+${prevDigest ? `\nCURRENT DIGEST:\n${prevDigest}\n` : ''}
+NEW CONVERSATIONS:
 ${blocks}`;
 }
 
-// Regenerate the memory digest in the background when new sessions have accrued.
-// Gated so it runs at most once per new completed session, never concurrently.
+// Which sessions the digest has already absorbed. Older digests only stored a
+// count; they were built when the oldest `count` sessions were all there were.
+function digestedIds(mem, sessions) {
+  if (Array.isArray(mem?.ids)) return new Set(mem.ids);
+  if (mem?.count) return new Set(sessions.slice(-mem.count).map(s => String(s.id)));
+  return new Set();
+}
+
+// Regenerate the memory digest in the background when a conversation has been
+// completed since the last run. The conversation still open is left for next
+// time, so each session is read by the model once, in full, after it ends.
 const _memGenerating = new Set();
 async function maybeUpdateMemory(profileId) {
   try {
     if (_memGenerating.has(profileId)) return;
     const profile = getProfiles().find(p => p.id === profileId);
     if (!profile) return;
-    const sessions = getSessions(profileId).filter(s => (s.messages || []).length >= 2);
-    if (sessions.length < 2) return;                    // too little to remember yet
+    const sessions = getSessions(profileId).filter(s => (s.messages || []).length >= 2);   // newest first
     const mem = getMemory(profileId);
-    if (mem && mem.count === sessions.length) return;   // already current
+    const seen = digestedIds(mem, sessions);
+    const fresh = sessions.filter(s => !seen.has(String(s.id)) && String(s.id) !== String(S.sessionId));
+    if (!fresh.length) return;                          // nothing new has ended
     if (!getKey(profileId)) return;                     // no way to call the model
 
     _memGenerating.add(profileId);
-    const digest = await llmComplete({ messages: [{ role: 'user', content: buildMemoryPrompt(profile, sessions) }], max_tokens: 700, tier: 'summary' });
-    if (digest?.trim()) saveMemory(profileId, { digest: digest.trim(), count: sessions.length, updatedAt: new Date().toISOString() });
+    const batch = fresh.slice(0, 12);   // what buildMemoryPrompt actually sends; the rest waits for the next run
+    const digest = await llmComplete({ messages: [{ role: 'user', content: buildMemoryPrompt(profile, batch, mem?.digest) }], max_tokens: 1200, tier: 'summary' });
+    if (digest?.trim()) saveMemory(profileId, {
+      digest: digest.trim(),
+      ids: [...seen, ...batch.map(s => String(s.id))].slice(-200),
+      count: sessions.length,
+      updatedAt: new Date().toISOString()
+    });
   } catch { /* background best-effort */ }
   finally { _memGenerating.delete(profileId); }
 }
@@ -384,10 +416,13 @@ function buildSystem(mode, profile) {
 
   // Two system blocks for prompt caching: the first (identity, charts, portrait,
   // rules) is identical across messages and gets cached by the API at a fraction
-  // of the input price; the second (date, sky, journal, memory, mode) changes.
+  // of the input price; the second (date, sky, journal, memory, mode, and the
+  // other people in a Together conversation) changes. Keeping the constellation
+  // out of the first block means adding or removing a person mid-session does
+  // not throw away the cached chart and portrait.
   const stable = `You are the personal astrological companion for ${name}. You hold intimate, precise knowledge of their natal chart — not as abstract symbols but as a living map of their psyche, potential, and path.
 
-${ctx}${constellation}
+${ctx}
 
 YOUR APPROACH:
 — Be specific to this person's chart and what you know of their placements. Never give generic horoscope statements.
@@ -397,7 +432,7 @@ YOUR APPROACH:
 — Reference the conversation history you are given. ${name} should feel truly remembered.
 — If journal entries are provided, treat them as lived context from ${name}'s own hand: notice recurring themes, connect a current question to what they wrote when it resonates, and hold intentions they set. Weave gently — never recite the journal back as a list.
 — If a distilled memory of past conversations is provided, let it give you continuity: remember what you've explored, pick up threads, notice growth. Draw on it naturally, as a companion who remembers — never announce "according to my memory".
-— Responses: usually 2–4 paragraphs. Tight and meaningful. Do not over-explain.
+— Length follows the question. Usually 2–4 paragraphs, tight and meaningful. When a question genuinely needs more — a full reading, several people's charts, timing across months — take the room and finish it properly.
 — One question per response maximum. Make it count.
 — A LIVE EPHEMERIS of the current sky is provided below — real computed positions and aspects to the natal chart. Use it for anything about "now," timing, or current energy. Never invent transit data beyond what is given; if something isn't listed, say so.
 — If an UPCOMING TIMELINE or FOCUS DAY is given, use its dates exactly. Describe tendencies and timing, never fixed events. Retrogrades are review periods, not dangers. No fear language, no "once in a lifetime" framing.
@@ -407,22 +442,20 @@ YOUR APPROACH:
   // Freeze the changing block for the length of a conversation (same mode, day,
   // language and focus), so the whole history before the newest message stays
   // cacheable. A new session, mode, focus day or calendar day refreshes it.
-  const dynKey = [S.sessionId, mode, S.focusDay?.iso || '', S.lang, today, [...(S.together || [])].sort().join(',')].join('|');
-  if (S._dyn?.key === dynKey) return [
-    { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
-    { type: 'text', text: S._dyn.text }
-  ];
+  // The stable block is cached for an hour: a reflective conversation pauses
+  // for longer than the default five minutes, and rewriting this block after
+  // every pause cost more than the longer cache does.
+  const stableBlock = { type: 'text', text: stable, cache_control: { type: 'ephemeral', ttl: '1h' } };
+  const dynKey = [S.sessionId, mode, S.focusDay?.iso || '', S.lang, today, [...(S.together || [])].sort().join(','), getMemory(profile.id)?.updatedAt || ''].join('|');
+  if (S._dyn?.key === dynKey) return [stableBlock, { type: 'text', text: S._dyn.text }];
 
   const dynamic = `Today: ${today}
 ${journal}${memory}
-${transits}${upcoming}${focusDay}
+${transits}${upcoming}${focusDay}${constellation}
 
 CURRENT MODE: ${modes[mode] || modes.reflect}${langLine}`;
   S._dyn = { key: dynKey, text: dynamic };
 
-  return [
-    { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
-    { type: 'text', text: dynamic }
-  ];
+  return [stableBlock, { type: 'text', text: dynamic }];
 }
 

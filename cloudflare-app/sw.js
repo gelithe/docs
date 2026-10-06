@@ -1,15 +1,15 @@
 // Chart Compass service worker — installable PWA + offline shell.
 // Network-first for the app document so fresh deploys are never stale;
 // cache-first for static icons; API/CDN calls are never intercepted.
-const CACHE = 'chart-compass-v16';
+const CACHE = 'chart-compass-v21';
 const SHELL = [
   './',
   './index.html',
-  './styles.css?v=16',
-  './js/core.js?v=16',
-  './js/engine.js?v=16',
-  './js/timeline.js?v=16',
-  './js/app.js?v=16',
+  './styles.css?v=21',
+  './js/core.js?v=21',
+  './js/engine.js?v=21',
+  './js/timeline.js?v=21',
+  './js/app.js?v=21',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
@@ -35,6 +35,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // leave Anthropic / Nominatim / CDN alone
+  if (url.pathname.startsWith('/api/')) return;     // never cache the proxy or the usage report
 
   // Network-first for the HTML document so a new deploy is picked up immediately online
   if (req.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('index.html')) {
