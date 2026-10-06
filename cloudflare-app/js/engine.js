@@ -434,7 +434,7 @@ async function generateDoc(prompt, onChunk, signal) {
   // Append the language directive so portraits honor the chosen language.
   // The ceiling leaves room for the model's own thinking, which counts too.
   try {
-    return await llmComplete({ messages: [{ role: 'user', content: prompt + docLangInstruction() }], max_tokens: 10000, tier: 'deep', onChunk, signal });
+    return await llmComplete({ messages: [{ role: 'user', content: prompt + docLangInstruction() }], max_tokens: 10000, tier: 'doc', onChunk, signal });
   } catch { return null; }
 }
 

@@ -42,12 +42,14 @@ export async function onRequestOptions() {
 
 // Per-task model routing. Set these in Cloudflare → Settings → Variables:
 //   MODEL_CHAT     personal conversation (fast, warm)      — default below
-//   MODEL_DEEP     constellations + portraits (max depth)  — set to an Opus model
+//   MODEL_DOC      the two portrait documents                — set to an Opus model
+//   MODEL_DEEP     deeper conversation work; also the fallback for MODEL_DOC
 //   MODEL_SUMMARY  memory digest (cheap compression)       — set to a Haiku model
 //   MODEL_OPENAI   model used for OpenAI BYOK
 // Any unset tier falls back to MODEL_DEFAULT, so the app keeps working untouched.
 const MODEL_DEFAULT = 'claude-sonnet-4-6';
 function modelForTier(env, tier) {
+  if (tier === 'doc')     return env.MODEL_DOC     || env.MODEL_DEEP || MODEL_DEFAULT;
   if (tier === 'deep')    return env.MODEL_DEEP    || MODEL_DEFAULT;
   if (tier === 'summary') return env.MODEL_SUMMARY || MODEL_DEFAULT;
   return env.MODEL_CHAT || MODEL_DEFAULT; // chat / anything else
