@@ -50,6 +50,8 @@ function loadProfile(id) {
   S.sessionId = String(Date.now());
   S.mode = 'reflect';
   S.together = new Set();
+  S.focusDay = null;
+  if (typeof TL !== 'undefined') { TL.data = null; TL.open = {}; TL.with = new Set(); TL.together = null; }
 
   document.querySelectorAll('.mode-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === 'reflect');
@@ -67,6 +69,7 @@ function loadProfile(id) {
   renderJournal();
   renderBook();
   renderPortrait();
+  if (document.getElementById('pane-timeline')?.classList.contains('active')) renderTimeline();
 }
 
 function updateSidebarChart(profile) {
@@ -415,7 +418,7 @@ function saveSessionData(profileId) {
 }
 
 function newSession() {
-  S.messages = []; S.sessionId = String(Date.now());
+  S.messages = []; S.sessionId = String(Date.now()); S.focusDay = null;
   const profile = getActiveProfile();
   document.getElementById('convo').innerHTML = `
     <div class="welcome" id="welcome">
@@ -564,6 +567,7 @@ function resumeSession(id) {
   if (!s) return;
   S.messages = [...s.messages];
   S.sessionId = s.id;
+  S.focusDay = null;
   S.mode = s.mode || 'reflect';
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === S.mode));
   renderStarters();
@@ -727,6 +731,7 @@ function switchTab(id, el) {
   document.getElementById('pane-' + id).classList.add('active');
   if (id === 'book') renderBook();
   if (id === 'portrait') renderPortrait();
+  if (id === 'timeline') renderTimeline();
 }
 
 // ─── THEME ────────────────────────────────────────────────────────────────────
