@@ -210,6 +210,14 @@ async function llmComplete({ system, messages, max_tokens, model, tier, provider
 }
 function saveKey(id,k)      { localStorage.setItem(ns(id,'key'), k); }
 
+// A reply may end with a note from the proxy (refusal, length cut, interrupted),
+// introduced by an invisible mark. Show it; never save or replay it.
+const NOTE_MARK = '\u2063';
+function splitReply(text) {
+  const i = (text || '').indexOf(NOTE_MARK);
+  return i < 0 ? { content: text || '', note: '' } : { content: text.slice(0, i), note: text.slice(i + 1) };
+}
+
 // ─── MIGRATE OLD DATA ─────────────────────────────────────────────────────────
 function migrateOldData(profileId) {
   const oldSessions = localStorage.getItem('cc_sessions');
@@ -346,10 +354,11 @@ async function maybeUpdateMemory(profileId) {
     if (!getKey(profileId)) return;                     // no way to call the model
 
     _memGenerating.add(profileId);
-    const digest = await llmComplete({ messages: [{ role: 'user', content: buildMemoryPrompt(profile, fresh, mem?.digest) }], max_tokens: 1200, tier: 'summary' });
+    const batch = fresh.slice(0, 12);   // what buildMemoryPrompt actually sends; the rest waits for the next run
+    const digest = await llmComplete({ messages: [{ role: 'user', content: buildMemoryPrompt(profile, batch, mem?.digest) }], max_tokens: 1200, tier: 'summary' });
     if (digest?.trim()) saveMemory(profileId, {
       digest: digest.trim(),
-      ids: [...seen, ...fresh.map(s => String(s.id))].slice(-200),
+      ids: [...seen, ...batch.map(s => String(s.id))].slice(-200),
       count: sessions.length,
       updatedAt: new Date().toISOString()
     });
@@ -437,7 +446,7 @@ YOUR APPROACH:
   // for longer than the default five minutes, and rewriting this block after
   // every pause cost more than the longer cache does.
   const stableBlock = { type: 'text', text: stable, cache_control: { type: 'ephemeral', ttl: '1h' } };
-  const dynKey = [S.sessionId, mode, S.focusDay?.iso || '', S.lang, today, [...(S.together || [])].sort().join(',')].join('|');
+  const dynKey = [S.sessionId, mode, S.focusDay?.iso || '', S.lang, today, [...(S.together || [])].sort().join(','), getMemory(profile.id)?.updatedAt || ''].join('|');
   if (S._dyn?.key === dynKey) return [stableBlock, { type: 'text', text: S._dyn.text }];
 
   const dynamic = `Today: ${today}

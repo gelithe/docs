@@ -61,7 +61,7 @@ function modelForTier(env, tier) {
 // there (and dropped on the retry if a model still objects).
 const EFFORT = { chat: 'low', summary: 'low', deep: 'medium', doc: 'high' };
 function effortFor(tier, model) {
-  if (/haiku|-4-5\b|-3-/.test(model)) return null;
+  if (/haiku|sonnet-4-5|-3-/.test(model)) return null;
   return EFFORT[tier] || EFFORT.chat;
 }
 
@@ -69,16 +69,23 @@ function effortFor(tier, model) {
 // problem (unknown or retired ID). A rate limit or an overloaded upstream is
 // retried by the user, not doubled by the proxy.
 function isModelRejected(status, msg) {
-  if (status === 404) return true;
-  return status === 400 && /model/i.test(msg || '') && !/output_config|effort/i.test(msg || '');
+  if (status === 404) return true;   // not_found_error: "model: <id>"
+  return status === 400 && /^model:|not a valid model|unknown model/i.test(msg || '');
 }
 const isEffortRejected = (status, msg) => status === 400 && /output_config|effort/i.test(msg || '');
 
 // Shown in the reply when the model stops for a reason other than finishing.
+// NOTE_MARK precedes every note: the client shows what follows it but keeps it
+// out of the saved conversation, so the note is never replayed to the model.
+const NOTE_MARK = '\u2063';
 const STOP_NOTES = {
-  refusal:    '\n\n— The model declined to continue this reply. Try rephrasing, or start a new conversation.',
-  max_tokens: '\n\n— The reply reached its length limit.'
+  refusal:    NOTE_MARK + '\n\n— The model declined to continue this reply. Try rephrasing, or start a new conversation.',
+  max_tokens: NOTE_MARK + '\n\n— The reply reached its length limit.'
 };
+
+// Ceilings per tier for calls on the owner's key. A caller with a code picks a
+// tier, never a model or an unbounded length; their own key (BYOK) may do both.
+const MAX_TOKENS = { chat: 2000, summary: 1200, deep: 4000, doc: 10000 };
 
 
 // ─── USAGE TALLY (optional) ──────────────────────────────────────────────────
@@ -175,9 +182,11 @@ export async function onRequestPost({ request, env, waitUntil }) {
 
   // ── Anthropic: stream tokens as plain text ──
   // Resolve the model from the requested tier (an explicit model still wins).
-  const wantModel = model || modelForTier(env, tier);
+  const wantModel = (byok && model) || modelForTier(env, tier);
+  const cap = MAX_TOKENS[tier] || MAX_TOKENS.chat;
+  const useMax = byok ? (max_tokens || 1500) : Math.min(max_tokens || 1500, cap);
   async function callAnthropic(useModel, effort) {
-    const payload = { model: useModel, max_tokens: max_tokens || 1500, messages: withHistoryCache(messages, system), stream: true };
+    const payload = { model: useModel, max_tokens: useMax, messages: withHistoryCache(messages, system), stream: true };
     if (system) payload.system = system;   // string, or blocks with cache_control from the client
     if (effort) payload.output_config = { effort };
     return fetch(ANTHROPIC_URL, {
@@ -235,7 +244,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
                 // cut arrives as a normal stop — say so instead of going silent.
                 controller.enqueue(enc.encode(STOP_NOTES[ev.delta.stop_reason]));
               } else if (ev.type === 'error') {
-                controller.enqueue(enc.encode(`\n\n— The reply was interrupted (${ev.error?.message || 'upstream error'}).`));
+                controller.enqueue(enc.encode(`${NOTE_MARK}\n\n— The reply was interrupted (${ev.error?.message || 'upstream error'}).`));
               }
             } catch { /* ignore keep-alives / partial frames */ }
           }

@@ -10,7 +10,13 @@ length — no 60s wall like the Vercel build.
 
 ```
 cloudflare-app/
-  index.html                 the app (streams replies; docs restored to full length)
+  index.html, styles.css     the app shell (asset version ?v=N — bump on every change)
+  js/core.js                 config, i18n, storage, proxy client, prompt builders, Book memory
+  js/engine.js               wizard, astro / Human Design / Gene Keys engine, portrait prompts
+  js/app.js                  UI, conversation, Book, journal, portrait rendering
+  js/timeline.js             Timeline tab (computed locally, no model)
+  functions/api/usage.js     usage report at /api/usage?key=ADMIN_KEY (needs the USAGE KV binding)
+  AUDIT-2026-10.md           the plan: findings, phases, status
   functions/api/chat.js      Pages Function proxy (Claude streamed, OpenAI JSON)
   _headers                   cache rules (fresh shell + service worker on deploy)
   manifest.webmanifest, sw.js, icon-*  PWA assets
@@ -53,7 +59,11 @@ the memory digest call the model.
 - **Pick cheaper models per task** in Settings → Variables and secrets:
   - `MODEL_SUMMARY` — a Haiku model (memory digest; quality barely matters)
   - `MODEL_CHAT` — try a Haiku model; switch back to Sonnet if replies feel thin
-  - `MODEL_DEEP` — keep Sonnet or Opus (portraits and Together)
+  - `MODEL_DOC` — the two portrait documents; an Opus model earns its price here
+  - `MODEL_DEEP` — deeper conversation work; also the fallback when `MODEL_DOC` is unset
+  Effort is set per tier by the proxy (low for chat and the digest, high for
+  documents). A caller with an access code cannot choose the model or exceed the
+  tier's length ceiling; a caller's own key (BYOK) can.
   Use the model IDs listed at docs.claude.com (Models overview). A bad value
   falls back to the default, so nothing breaks.
 

@@ -332,7 +332,12 @@ async function send() {
   try {
     const reply = await callAPI(profile, onChunk);
     if (typingEl) { typingEl.remove(); typingEl = null; }
-    S.messages.push({ role: 'assistant', content: reply });
+    // Keep the proxy's note (refusal, length cut) on screen but out of the
+    // history; a reply with no content at all is not worth remembering, so the
+    // question that produced it is dropped from the history too.
+    const { content } = splitReply(reply);
+    if (content.trim()) S.messages.push({ role: 'assistant', content });
+    else S.messages.pop();
     const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     if (bubbleEl) {
       bubbleEl.querySelector('.bubble').innerHTML = fmtText(reply);
@@ -408,6 +413,7 @@ function scrollBottom() { const c = document.getElementById('convo'); c.scrollTo
 
 function fmtText(raw) {
   return raw
+    .replace(NOTE_MARK, '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
@@ -566,7 +572,6 @@ function renderBook() {
   if (!id) return;
   const sessions = getSessions(id);
   const container = document.getElementById('bookChapters');
-  if (!sessions.length) { container.innerHTML = '<p class="book-empty">Your conversations will appear here as chapters.</p>'; return; }
   // What the Compass carries forward from past chapters — visible, and forgettable.
   const mem = getMemory(id);
   const memHtml = mem?.digest?.trim() ? `
@@ -583,6 +588,7 @@ function renderBook() {
           <div style="margin-top:10px;"><button class="btn-sm" onclick="forgetMemory()">Forget this</button></div>
         </div>
       </div>` : '';
+  if (!sessions.length) { container.innerHTML = memHtml + '<p class="book-empty">Your conversations will appear here as chapters.</p>'; return; }
   container.innerHTML = memHtml + sessions.map((s, i) => {
     const date = new Date(s.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     const exchanges = Math.ceil(s.messages.length / 2);
@@ -746,7 +752,7 @@ function docProgress(kind, partial, busy) {
   S.generating[kind] = !!busy;
   S.partialDoc[kind] = busy ? partial : '';
   const counter = document.getElementById(`gen-${kind}`);
-  if (counter) counter.textContent = busy && partial ? `${partial.split(/\s+/).filter(Boolean).length} words` : (busy ? '…' : 'done');
+  if (counter) counter.textContent = busy ? (partial ? `${partial.split(/\s+/).filter(Boolean).length} words` : '…') : (partial ? 'done' : '—');
   if (!busy || (S.portraitView || 'story') === kind) renderPortrait();
 }
 

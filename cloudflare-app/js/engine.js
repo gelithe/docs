@@ -279,9 +279,8 @@ function showGeneratingOverlay(profile, key) {
   WZ.portraitAbort = ctl;
   const write = (kind, prompt, field) =>
     generateDoc(prompt, partial => docProgress(kind, partial, true), ctl.signal)
-      .then(t => { if (t) { updateProfile(profile.id, { [field]: t }); return true; } return false; })
-      .catch(() => false)
-      .finally(() => docProgress(kind, '', false));
+      .then(t => { if (t) updateProfile(profile.id, { [field]: t }); docProgress(kind, t || '', false); return !!t; })
+      .catch(() => { docProgress(kind, '', false); return false; });
   docProgress('story', '', true);
   docProgress('analysis', '', true);
   Promise.all([

@@ -512,7 +512,7 @@ function tlTogetherHeader(T) {
   const pairs = T.pairs.map(pr => {
     const top = pr.links.filter(l => l.orb <= 2).slice(0, 6);
     return `<div class="tl-syn"><b>${esc(pr.A.name)} × ${esc(pr.B.name)}</b> ` + (top.length
-      ? top.map(l => `<span class="tl-link ${l.tone > 0 ? 't-harmony' : l.tone < 0 ? 't-friction' : 't-mixed'}">${pr.A.name}'s ${l.p} ${l.asp} ${pr.B.name}'s ${l.q} (${l.orb.toFixed(1)}°)</span>`).join('')
+      ? top.map(l => `<span class="tl-link ${l.tone > 0 ? 't-harmony' : l.tone < 0 ? 't-friction' : 't-mixed'}">${esc(pr.A.name)}'s ${l.p} ${l.asp} ${esc(pr.B.name)}'s ${l.q} (${l.orb.toFixed(1)}°)</span>`).join('')
       : '<span class="tl-link">no tight links</span>') + `</div>`;
   }).join('');
   const comp = T.composite.length
