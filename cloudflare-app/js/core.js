@@ -114,7 +114,7 @@ function updateProfile(id, data) {
 function deleteProfile(id) {
   const ps = getProfiles().filter(p => p.id !== id);
   saveProfiles(ps);
-  ['sessions','journal','key'].forEach(k => localStorage.removeItem(`cc_${id}_${k}`));
+  ['sessions','journal','key','memory'].forEach(k => localStorage.removeItem(`cc_${id}_${k}`));
   if (getActiveId() === id) setActiveId(ps[0]?.id || '');
 }
 
@@ -176,7 +176,7 @@ async function updateAccessCode() {
   alert(verdict === 'ok' ? 'Access code updated ✓' : 'Saved — could not verify right now, but it will be used.');
 }
 
-async function llmComplete({ system, messages, max_tokens, model, tier, provider, onChunk }) {
+async function llmComplete({ system, messages, max_tokens, model, tier, provider, onChunk, signal }) {
   const res = await fetch(PROXY_ENDPOINT, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -184,7 +184,8 @@ async function llmComplete({ system, messages, max_tokens, model, tier, provider
       provider, model, tier, max_tokens, system, messages,
       accessCode: getAccessCode() || undefined,
       userKey: getPersonalKey() || undefined
-    })
+    }),
+    signal   // optional AbortSignal: cancelling closes the stream and stops the model
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -298,38 +299,60 @@ function buildBookContext(profileId) {
   } catch { return ''; }
 }
 
-function buildMemoryPrompt(profile, sessions) {
-  const blocks = sessions.slice(0, 40).map(s => {
+// Incremental: the previous digest plus only the conversations since it was
+// written. Each session is capped so a long chat cannot blow up the prompt.
+function buildMemoryPrompt(profile, sessions, prevDigest) {
+  const blocks = sessions.slice(0, 12).map(s => {
     const d = new Date(s.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    const convo = (s.messages || []).map(m => `${m.role === 'user' ? profile.name : 'Compass'}: ${(m.content || '').slice(0, 400)}`).join('\n');
+    const msgs = (s.messages || []).slice(0, 12);
+    const convo = msgs.map(m => `${m.role === 'user' ? profile.name : 'Compass'}: ${(m.content || '').slice(0, 250)}`).join('\n');
     return `── ${d} · ${s.mode || 'reflect'} · "${s.title || ''}"\n${convo}`;
   }).join('\n\n');
 
-  return `Below are past conversations between ${profile.name} and their astrological companion (the "Compass"). Write a compact MEMORY DIGEST the companion can carry into future conversations so ${profile.name} feels continuously known.
+  const task = prevDigest
+    ? `Below is the companion's current MEMORY DIGEST about ${profile.name}, followed by the conversations that happened since it was written. Rewrite the digest so it folds the new conversations in — keep what still matters, let what has faded recede, notice what has grown.`
+    : `Below are past conversations between ${profile.name} and their astrological companion (the "Compass"). Write a compact MEMORY DIGEST the companion can carry into future conversations so ${profile.name} feels continuously known.`;
+
+  return `${task}
 
 Capture: recurring themes and questions, emotional threads over time, insights that landed, intentions or decisions they voiced, and anything sensitive to hold with care. Write about ${profile.name} in the third person. Be a memory, not a transcript — no play-by-play, no quotes. 150–250 words, plain prose.
-
-CONVERSATIONS:
+${prevDigest ? `\nCURRENT DIGEST:\n${prevDigest}\n` : ''}
+NEW CONVERSATIONS:
 ${blocks}`;
 }
 
-// Regenerate the memory digest in the background when new sessions have accrued.
-// Gated so it runs at most once per new completed session, never concurrently.
+// Which sessions the digest has already absorbed. Older digests only stored a
+// count; they were built when the oldest `count` sessions were all there were.
+function digestedIds(mem, sessions) {
+  if (Array.isArray(mem?.ids)) return new Set(mem.ids);
+  if (mem?.count) return new Set(sessions.slice(-mem.count).map(s => String(s.id)));
+  return new Set();
+}
+
+// Regenerate the memory digest in the background when a conversation has been
+// completed since the last run. The conversation still open is left for next
+// time, so each session is read by the model once, in full, after it ends.
 const _memGenerating = new Set();
 async function maybeUpdateMemory(profileId) {
   try {
     if (_memGenerating.has(profileId)) return;
     const profile = getProfiles().find(p => p.id === profileId);
     if (!profile) return;
-    const sessions = getSessions(profileId).filter(s => (s.messages || []).length >= 2);
-    if (sessions.length < 2) return;                    // too little to remember yet
+    const sessions = getSessions(profileId).filter(s => (s.messages || []).length >= 2);   // newest first
     const mem = getMemory(profileId);
-    if (mem && mem.count === sessions.length) return;   // already current
+    const seen = digestedIds(mem, sessions);
+    const fresh = sessions.filter(s => !seen.has(String(s.id)) && String(s.id) !== String(S.sessionId));
+    if (!fresh.length) return;                          // nothing new has ended
     if (!getKey(profileId)) return;                     // no way to call the model
 
     _memGenerating.add(profileId);
-    const digest = await llmComplete({ messages: [{ role: 'user', content: buildMemoryPrompt(profile, sessions) }], max_tokens: 700, tier: 'summary' });
-    if (digest?.trim()) saveMemory(profileId, { digest: digest.trim(), count: sessions.length, updatedAt: new Date().toISOString() });
+    const digest = await llmComplete({ messages: [{ role: 'user', content: buildMemoryPrompt(profile, fresh, mem?.digest) }], max_tokens: 1200, tier: 'summary' });
+    if (digest?.trim()) saveMemory(profileId, {
+      digest: digest.trim(),
+      ids: [...seen, ...fresh.map(s => String(s.id))].slice(-200),
+      count: sessions.length,
+      updatedAt: new Date().toISOString()
+    });
   } catch { /* background best-effort */ }
   finally { _memGenerating.delete(profileId); }
 }
@@ -384,10 +407,13 @@ function buildSystem(mode, profile) {
 
   // Two system blocks for prompt caching: the first (identity, charts, portrait,
   // rules) is identical across messages and gets cached by the API at a fraction
-  // of the input price; the second (date, sky, journal, memory, mode) changes.
+  // of the input price; the second (date, sky, journal, memory, mode, and the
+  // other people in a Together conversation) changes. Keeping the constellation
+  // out of the first block means adding or removing a person mid-session does
+  // not throw away the cached chart and portrait.
   const stable = `You are the personal astrological companion for ${name}. You hold intimate, precise knowledge of their natal chart — not as abstract symbols but as a living map of their psyche, potential, and path.
 
-${ctx}${constellation}
+${ctx}
 
 YOUR APPROACH:
 — Be specific to this person's chart and what you know of their placements. Never give generic horoscope statements.
@@ -407,22 +433,20 @@ YOUR APPROACH:
   // Freeze the changing block for the length of a conversation (same mode, day,
   // language and focus), so the whole history before the newest message stays
   // cacheable. A new session, mode, focus day or calendar day refreshes it.
+  // The stable block is cached for an hour: a reflective conversation pauses
+  // for longer than the default five minutes, and rewriting this block after
+  // every pause cost more than the longer cache does.
+  const stableBlock = { type: 'text', text: stable, cache_control: { type: 'ephemeral', ttl: '1h' } };
   const dynKey = [S.sessionId, mode, S.focusDay?.iso || '', S.lang, today, [...(S.together || [])].sort().join(',')].join('|');
-  if (S._dyn?.key === dynKey) return [
-    { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
-    { type: 'text', text: S._dyn.text }
-  ];
+  if (S._dyn?.key === dynKey) return [stableBlock, { type: 'text', text: S._dyn.text }];
 
   const dynamic = `Today: ${today}
 ${journal}${memory}
-${transits}${upcoming}${focusDay}
+${transits}${upcoming}${focusDay}${constellation}
 
 CURRENT MODE: ${modes[mode] || modes.reflect}${langLine}`;
   S._dyn = { key: dynKey, text: dynamic };
 
-  return [
-    { type: 'text', text: stable, cache_control: { type: 'ephemeral' } },
-    { type: 'text', text: dynamic }
-  ];
+  return [stableBlock, { type: 'text', text: dynamic }];
 }
 
